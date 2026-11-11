@@ -4,23 +4,46 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 
 import { categoriesFor } from '@/lib/categories';
 import { formatDay, shiftDay, toDateKey } from '@/lib/dates';
+import { findPossibleDuplicate, localDateFromIso, suggestCategory } from '@/lib/inbox';
 import { parseAmount } from '@/lib/money';
 import type { TransactionKind } from '@/lib/types';
+import { useInbox } from '@/store/inbox';
 import { useTransactions } from '@/store/transactions';
 import { colors } from '@/theme';
 
-/** Crea un movimiento nuevo o, si recibe `id`, edita uno existente. */
+/**
+ * Crea un movimiento nuevo, edita uno existente (`id`) o revisa uno
+ * recibido por correo (`pendingId`).
+ */
 export default function TransactionScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, pendingId } = useLocalSearchParams<{ id?: string; pendingId?: string }>();
   const { transactions, add, update, remove } = useTransactions();
+  const inbox = useInbox();
   const existing = id ? transactions.find((t) => t.id === id) : undefined;
+  const pending = pendingId ? inbox.items.find((i) => i.id === pendingId) : undefined;
 
-  const [kind, setKind] = useState<TransactionKind>(existing?.kind ?? 'expense');
-  const [amountText, setAmountText] = useState(existing ? (existing.amount / 100).toFixed(2) : '');
-  const [categoryId, setCategoryId] = useState(existing?.categoryId ?? categoriesFor('expense')[0].id);
-  const [note, setNote] = useState(existing?.note ?? '');
-  const [date, setDate] = useState(existing?.date ?? toDateKey(new Date()));
+  const initialKind = existing?.kind ?? pending?.kind ?? 'expense';
+  const initialAmount = existing?.amount ?? pending?.amount ?? null;
+  const [kind, setKind] = useState<TransactionKind>(initialKind);
+  const [amountText, setAmountText] = useState(initialAmount ? (initialAmount / 100).toFixed(2) : '');
+  const [categoryId, setCategoryId] = useState(
+    existing?.categoryId ??
+      (pending ? suggestCategory(pending.merchant, pending.kind, inbox.rules) : categoriesFor('expense')[0].id),
+  );
+  const [note, setNote] = useState(existing?.note ?? pending?.merchant ?? '');
+  const [date, setDate] = useState(
+    existing?.date ?? (pending ? localDateFromIso(pending.receivedAt) : toDateKey(new Date())),
+  );
   const [error, setError] = useState<string | null>(null);
+
+  const parsedAmount = parseAmount(amountText);
+  const duplicate =
+    pending && parsedAmount !== null
+      ? findPossibleDuplicate(
+          { amount: parsedAmount, kind, merchant: pending.merchant, receivedAt: `${date}T12:00:00` },
+          transactions,
+        )
+      : undefined;
 
   const changeKind = (next: TransactionKind) => {
     setKind(next);
@@ -34,8 +57,15 @@ export default function TransactionScreen() {
       return;
     }
     const data = { kind, amount, categoryId, note: note.trim(), date };
-    if (existing) update({ ...data, id: existing.id });
+    if (existing) update({ ...existing, ...data });
+    else if (pending) inbox.confirm(pending, { ...data, merchant: pending.merchant ?? undefined });
     else add(data);
+    router.back();
+  };
+
+  const discardPending = () => {
+    if (!pending) return;
+    inbox.discard(pending);
     router.back();
   };
 
@@ -59,7 +89,24 @@ export default function TransactionScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: existing ? 'Editar movimiento' : 'Nuevo movimiento' }} />
+      <Stack.Screen
+        options={{ title: existing ? 'Editar movimiento' : pending ? 'Revisar movimiento' : 'Nuevo movimiento' }}
+      />
+
+      {pending ? (
+        <View style={styles.source}>
+          <Text style={styles.sourceTitle}>Recibido por correo</Text>
+          <Text style={styles.sourceText} numberOfLines={2}>
+            {pending.subject} · {pending.from}
+            {pending.cardLast4 ? ` · tarjeta •••• ${pending.cardLast4}` : ''}
+          </Text>
+          {duplicate ? (
+            <Text style={styles.duplicate}>
+              Ya tienes un movimiento igual ese día. Si es el mismo pago, descártalo.
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.segment}>
         {(['expense', 'income'] as const).map((k) => (
@@ -126,8 +173,14 @@ export default function TransactionScreen() {
       />
 
       <Pressable style={styles.save} onPress={save}>
-        <Text style={styles.saveText}>Guardar</Text>
+        <Text style={styles.saveText}>{pending ? 'Confirmar' : 'Guardar'}</Text>
       </Pressable>
+
+      {pending ? (
+        <Pressable style={styles.delete} onPress={discardPending}>
+          <Text style={styles.deleteText}>Descartar</Text>
+        </Pressable>
+      ) : null}
 
       {existing ? (
         <Pressable style={styles.delete} onPress={confirmDelete}>
@@ -140,6 +193,10 @@ export default function TransactionScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 20 },
+  source: { backgroundColor: '#EEF2FF', borderRadius: 12, padding: 14, marginBottom: 16, gap: 4 },
+  sourceTitle: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  sourceText: { fontSize: 13, color: colors.text },
+  duplicate: { fontSize: 13, color: '#B45309', marginTop: 4 },
   segment: { flexDirection: 'row', backgroundColor: colors.border, borderRadius: 12, padding: 4 },
   segmentItem: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
   segmentActive: { backgroundColor: colors.card },

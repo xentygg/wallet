@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wallet-correo",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "vars": {
+    // Cambia esto por tu dominio real antes de publicar.
+    "MAIL_DOMAIN": "example.com"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wallet-correo",
+      // Se obtiene con: npx wrangler d1 create wallet-correo
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

@@ -1,6 +1,11 @@
 /** Convierte texto como "1.234,50", "1234.5" o "12" a centavos. Devuelve null si no es válido. */
 export function parseAmount(input: string): number | null {
-  const text = input.trim().replace(/\s/g, '');
+  // Acepta símbolo y moneda: "$1,234.50", "1234.50 MXN", "MN 89".
+  const text = input
+    .trim()
+    .replace(/^(?:MXN|MN)\s*|\s*(?:MXN|M\.?N\.?)$/i, '')
+    .replace(/^\$/, '')
+    .replace(/\s/g, '');
   if (!/^\d[\d.,]*$/.test(text)) return null;
 
   // El último separador seguido de 1-2 dígitos es el decimal; el resto son miles.
