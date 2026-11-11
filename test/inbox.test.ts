@@ -22,11 +22,15 @@ test('normalizeMerchant unifica variantes', () => {
 test('suggestCategory recuerda la categoría por comercio', () => {
   let rules = learnRule({}, 'OXXO 123', 'food');
   assert.equal(suggestCategory('oxxo 456', 'expense', rules), 'food');
-  assert.equal(suggestCategory('Otro comercio', 'expense', rules), 'food'); // primera categoría de gasto
+  // Sin regla no se adivina: "Otros".
+  assert.equal(suggestCategory('Otro comercio', 'expense', rules), 'other-expense');
+  assert.equal(suggestCategory(null, 'income', rules), 'other-income');
   rules = learnRule(rules, 'Uber', 'transport');
   assert.equal(suggestCategory('UBER', 'expense', rules), 'transport');
   // Una regla de gasto no aplica a un ingreso.
-  assert.equal(suggestCategory('UBER', 'income', rules), 'salary');
+  assert.equal(suggestCategory('UBER', 'income', rules), 'other-income');
+  // "Otros" no se aprende ni sobrescribe una regla útil.
+  assert.equal(learnRule(rules, 'Uber', 'other-expense'), rules);
 });
 
 test('localDateFromIso usa la fecha local del teléfono', () => {

@@ -31,11 +31,15 @@ export function suggestCategory(
     const remembered = rules[normalizeMerchant(merchant)];
     if (remembered && options.some((c) => c.id === remembered)) return remembered;
   }
-  return options[0].id;
+  // Sin regla aprendida no adivinamos: "Otros" hasta que el usuario elija.
+  return kind === 'income' ? 'other-income' : 'other-expense';
 }
 
+const GENERIC_CATEGORIES = new Set(['other-expense', 'other-income']);
+
 export function learnRule(rules: MerchantRules, merchant: string | undefined, categoryId: string): MerchantRules {
-  if (!merchant) return rules;
+  // "Otros" no se aprende: no aporta y taparía una sugerencia mejor más adelante.
+  if (!merchant || GENERIC_CATEGORIES.has(categoryId)) return rules;
   const key = normalizeMerchant(merchant);
   if (!key || rules[key] === categoryId) return rules;
   return { ...rules, [key]: categoryId };

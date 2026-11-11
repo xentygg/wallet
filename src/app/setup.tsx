@@ -26,8 +26,8 @@ export default function SetupScreen() {
         <View style={styles.box}>
           <Text style={styles.boxTitle}>Qué guardamos</Text>
           <Text style={styles.text}>
-            Del correo solo leemos importe, comercio, fecha y últimos 4 dígitos de la tarjeta. El texto del correo se
-            descarta, y el movimiento se borra del servidor en cuanto lo confirmas.
+            Del correo guardamos importe, comercio, fecha, últimos 4 dígitos de la tarjeta, remitente y asunto. El
+            resto del texto se descarta, y todo se borra del servidor en cuanto confirmas o descartas el movimiento.
           </Text>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
