@@ -59,7 +59,9 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const handledRef = useRef<string[]>([]);
-  handledRef.current = handled;
+  useEffect(() => {
+    handledRef.current = handled;
+  }, [handled]);
 
   useEffect(() => {
     AsyncStorage.multiGet([KEYS.connection, KEYS.rules, KEYS.handled])
@@ -84,9 +86,9 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     if (loaded) persist(KEYS.handled, handled);
   }, [handled, loaded, persist]);
 
-  const refresh = useCallback(async () => {
+  /** Descarga la bandeja del servidor. Solo cambia estado después de la respuesta. */
+  const sync = useCallback(async () => {
     if (!connection) return;
-    setRefreshing(true);
     try {
       const data = await api.inbox(connection.token);
       const done = new Set(handledRef.current);
@@ -101,20 +103,27 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       setError(null);
     } catch (e) {
       setError(errorMessage(e));
-    } finally {
-      setRefreshing(false);
     }
   }, [connection]);
+
+  /** Sincronización pedida por el usuario (deslizar hacia abajo), con indicador. */
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    await sync();
+    setRefreshing(false);
+  }, [sync]);
 
   // Sincroniza al abrir la app y cada vez que vuelve a primer plano.
   useEffect(() => {
     if (!connection) return;
-    refresh();
+    // sync() solo cambia estado después de esperar la respuesta del servidor (no en el cuerpo del efecto).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    sync();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') refresh();
+      if (state === 'active') sync();
     });
     return () => sub.remove();
-  }, [connection, refresh]);
+  }, [connection, sync]);
 
   const connect = useCallback(async () => {
     try {
