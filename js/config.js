@@ -18,8 +18,8 @@ window.CONFIG = {
   // Plataforma de afiliado
   registro: {
     activo: true,                       // pon false para ocultar la sección
-    url: "https://TU-ENLACE-DE-AFILIADO.com",
-    parametroReferido: "subid",         // si tu programa acepta un sub-ID, aquí va el nombre del parámetro ("" para no enviarlo)
+    url: "https://winpot.me/El_licenciado",   // enlace tal cual lo da la plataforma: no se le agrega nada
+    parametroReferido: "",              // vacío = el enlace NO se modifica. Solo llenarlo si la plataforma confirma que acepta sub-ID
     titulo: "Únete a la plataforma y recibe tu compensación",
     descripcion: "Regístrate con nuestro enlace y te damos una compensación de bienvenida. Una cuenta por persona.",
     textoBoton: "Registrarme",
