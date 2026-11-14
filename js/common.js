@@ -22,14 +22,12 @@
     return u.toString();
   }
 
+  // Botón de registro: abre WhatsApp con un mensaje listo. Si a la persona la invitó alguien,
+  // se agrega el código de quien la invitó para que sepas a quién agradecer.
   function urlRegistro() {
-    const r = C.registro;
-    try {
-      const u = new URL(r.url);
-      const origen = store.get("mc_ref_origen");
-      if (r.parametroReferido && origen) u.searchParams.set(r.parametroReferido, origen);
-      return u.toString();
-    } catch (e) { return r.url; }
+    const origen = store.get("mc_ref_origen");
+    const texto = C.registro.mensaje + (origen ? `\nMe invitó: ${origen}` : "");
+    return "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent(texto);
   }
 
   function compartirWhatsApp(texto, numero) {
