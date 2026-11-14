@@ -12,7 +12,7 @@ Es una página estática: no necesita servidor ni base de datos.
 
 | Archivo | Para qué |
 |---|---|
-| `js/config.js` | Nombre de marca, TikTok, canal de WhatsApp, tu número, enlace de afiliado. **Empieza aquí.** |
+| `js/config.js` | Nombre de marca, TikTok, grupo de WhatsApp (vacío mientras esté deshabilitado), tu número, enlace de afiliado. **Empieza aquí.** |
 | `data/quiniela.js` | Partidos de la jornada, fecha de cierre, premio y tabla general. Cámbialo cada semana. |
 | `data/preguntas.js` y `data/frases.js` | Se generan solos desde el proyecto de TikTok (ver abajo). No los edites a mano. |
 

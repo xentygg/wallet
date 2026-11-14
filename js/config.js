@@ -6,11 +6,14 @@ window.CONFIG = {
   eslogan: "Trivias, quinielas y datos curiosos de futbol, NFL y béisbol. Aquí se ve quién sí sabe.",
 
   // Redes y comunidad
-  tiktok: "https://www.tiktok.com/@TU_USUARIO",          // tu página de TikTok
-  canalWhatsApp: "https://whatsapp.com/channel/TU_CANAL", // canal o grupo de la comunidad
+  tiktok: "https://www.tiktok.com/@mrcatstudio",
 
-  // Número del organizador (a quien llegan las quinielas). Formato: 52 + 10 dígitos, sin "+" ni espacios
-  whatsappOrganizador: "521XXXXXXXXXX",
+  // Enlace de invitación al grupo de WhatsApp. Déjalo vacío ("") mientras esté deshabilitado:
+  // la página dirá que abre pronto y ofrecerá escribir al número de abajo.
+  grupoWhatsApp: "",
+
+  // Número de WhatsApp de la página (aquí llegan las quinielas y mensajes). Formato: 52 + 10 dígitos, sin "+" ni espacios
+  whatsappOrganizador: "528442997625",
 
   // Plataforma de afiliado
   registro: {

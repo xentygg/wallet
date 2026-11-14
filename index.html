@@ -64,8 +64,8 @@
 
     <section class="card">
       <h2 class="titulo-sec">💬 Únete a la comunidad</h2>
-      <p>Resultados de la quiniela, trivias exclusivas y avisos en el canal de WhatsApp.</p>
-      <a class="btn btn-wa" id="link-canal" target="_blank" rel="noopener">Entrar al canal</a>
+      <p id="canal-texto">Resultados de la quiniela, trivias exclusivas y avisos en el grupo de WhatsApp.</p>
+      <a class="btn btn-wa" id="link-canal" target="_blank" rel="noopener">Entrar al grupo</a>
     </section>
   </main>
 
@@ -79,7 +79,15 @@
     document.getElementById("gato-hero").innerHTML = MC.gato;
     document.getElementById("eslogan").textContent = C.eslogan;
     document.getElementById("link-tiktok").href = C.tiktok;
-    document.getElementById("link-canal").href = C.canalWhatsApp;
+    const canal = document.getElementById("link-canal");
+    if (C.grupoWhatsApp) {
+      canal.href = C.grupoWhatsApp;
+    } else {
+      // Mientras el grupo esté deshabilitado: se avisa que viene pronto y se ofrece escribir directo
+      document.getElementById("canal-texto").textContent = "El grupo de WhatsApp abre muy pronto. Mientras, escríbele directo a Don Gato.";
+      canal.textContent = "Escribir por WhatsApp";
+      canal.href = "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent("Hola Don Gato 😎, vengo de la página.");
+    }
 
     if (C.registro.activo) {
       document.getElementById("registro").hidden = false;

@@ -62,7 +62,9 @@
     return `
     <footer class="pie">
       ${aviso}
-      <p><a href="${C.tiktok}" target="_blank" rel="noopener">TikTok</a> · <a href="${C.canalWhatsApp}" target="_blank" rel="noopener">Comunidad en WhatsApp</a></p>
+      <p><a href="${C.tiktok}" target="_blank" rel="noopener">TikTok</a> · ${C.grupoWhatsApp
+        ? `<a href="${C.grupoWhatsApp}" target="_blank" rel="noopener">Grupo de WhatsApp</a>`
+        : `<a href="https://wa.me/${C.whatsappOrganizador}" target="_blank" rel="noopener">WhatsApp</a>`}</p>
       <p class="mini">© ${new Date().getFullYear()} ${C.marca}. Trivias y quinielas gratuitas para la comunidad.</p>
     </footer>`;
   }
