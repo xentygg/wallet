@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiniela — {marca}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap">
+    <section class="card" style="margin-top:20px">
+      <h2 class="titulo-sec" id="q-titulo"></h2>
+      <p id="q-info" style="color:var(--muted);margin:0 0 6px"></p>
+      <p id="q-premio" style="margin:0 0 10px;font-weight:600"></p>
+      <p style="color:var(--muted);font-size:.9rem;margin:0">Elige <b>L</b> (gana local), <b>E</b> (empate) o <b>V</b> (gana visita). 1 punto por acierto. Es gratis.</p>
+      <div id="partidos"></div>
+      <div style="margin-top:16px">
+        <label for="nombre">Tu nombre o apodo</label>
+        <input type="text" id="nombre" maxlength="30" placeholder="Ej. El Profe Coronado">
+      </div>
+      <div class="fila" style="margin-top:16px">
+        <button class="btn btn-wa" id="enviar" disabled>Enviar mi quiniela por WhatsApp</button>
+      </div>
+      <p id="faltan" style="text-align:center;color:var(--muted);font-size:.9rem"></p>
+    </section>
+
+    <section class="card">
+      <h2 class="titulo-sec">🏆 Tabla general</h2>
+      <table><thead><tr><th>#</th><th>Participante</th><th style="text-align:right">Pts</th></tr></thead><tbody id="tabla"></tbody></table>
+    </section>
+  </main>
+  <div id="footer"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="data/quiniela.js"></script>
+  <script src="js/quiniela.js"></script>
+</body>
+</html>

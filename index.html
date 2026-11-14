@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{marca} — Trivias y quinielas deportivas</title>
+  <meta name="description" content="Trivia deportiva diaria, quinielas gratis y datos curiosos con Mr. Cat.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="header"></div>
+
+  <main class="wrap">
+    <div class="hero">
+      <div id="gato-hero"></div>
+      <h1>¿Sabes de deportes?<br><span>Demuéstralo.</span></h1>
+      <p id="eslogan"></p>
+      <div class="fila">
+        <a class="btn btn-pri" href="trivia.html">🧠 Jugar la trivia de hoy</a>
+        <a class="btn btn-sec" href="quiniela.html">⚽ Llenar la quiniela</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="ico">🧠</div>
+        <h3>Trivia diaria</h3>
+        <p>5 preguntas nuevas cada día. Compara tu resultado con tus amigos.</p>
+        <a class="btn btn-sec" href="trivia.html">Jugar</a>
+      </div>
+      <div class="card">
+        <div class="ico">🏆</div>
+        <h3>Quiniela gratis</h3>
+        <p>Pronostica la jornada, mándala por WhatsApp y sube en la tabla.</p>
+        <a class="btn btn-sec" href="quiniela.html">Participar</a>
+      </div>
+      <div class="card">
+        <div class="ico">📱</div>
+        <h3>Síguenos en TikTok</h3>
+        <p>Quizzes y datos curiosos todos los días con Mr. Cat.</p>
+        <a class="btn btn-sec" id="link-tiktok" target="_blank" rel="noopener">Ver TikTok</a>
+      </div>
+    </div>
+
+    <section id="registro" class="card destacada" hidden>
+      <h2 id="reg-titulo"></h2>
+      <p id="reg-desc"></p>
+      <a class="btn btn-pri" id="reg-btn" target="_blank" rel="noopener sponsored"></a>
+      <p class="aviso" id="reg-aviso" style="margin-top:14px" hidden>🔞 Solo mayores de 18 años. Una cuenta por persona. Juega con responsabilidad.</p>
+    </section>
+
+    <section class="card">
+      <h2 class="titulo-sec">🐾 Invita a tus amigos</h2>
+      <p>Comparte tu enlace personal. Así sabemos quién trae más gente a la comunidad.</p>
+      <div class="ref-box">
+        <input type="text" id="mi-link" readonly>
+        <button class="btn btn-sec" id="copiar">Copiar</button>
+        <button class="btn btn-wa" id="compartir">WhatsApp</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="titulo-sec">💬 Únete a la comunidad</h2>
+      <p>Resultados de la quiniela, trivias exclusivas y avisos en el canal de WhatsApp.</p>
+      <a class="btn btn-wa" id="link-canal" target="_blank" rel="noopener">Entrar al canal</a>
+    </section>
+  </main>
+
+  <div id="footer"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    const C = window.CONFIG;
+    MC.montar("inicio");
+    document.getElementById("gato-hero").innerHTML = MC.gato;
+    document.getElementById("eslogan").textContent = C.eslogan;
+    document.getElementById("link-tiktok").href = C.tiktok;
+    document.getElementById("link-canal").href = C.canalWhatsApp;
+
+    if (C.registro.activo) {
+      document.getElementById("registro").hidden = false;
+      document.getElementById("reg-titulo").textContent = C.registro.titulo;
+      document.getElementById("reg-desc").textContent = C.registro.descripcion;
+      const b = document.getElementById("reg-btn");
+      b.textContent = C.registro.textoBoton;
+      b.href = MC.urlRegistro();
+      document.getElementById("reg-aviso").hidden = !C.registro.soloMayores;
+    }
+
+    const miLink = MC.urlConMiRef("index.html");
+    const inp = document.getElementById("mi-link");
+    inp.value = miLink;
+    document.getElementById("copiar").onclick = async (e) => {
+      try { await navigator.clipboard.writeText(miLink); } catch (_) { inp.select(); document.execCommand("copy"); }
+      e.target.textContent = "¡Copiado!";
+    };
+    document.getElementById("compartir").onclick = () =>
+      MC.compartirWhatsApp(`🐱 ¿Sabes de deportes? Juega la trivia diaria y la quiniela gratis de ${C.marca}: ${miLink}`);
+  </script>
+</body>
+</html>
