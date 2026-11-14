@@ -1,6 +1,6 @@
-# Mr. Cat Coronado 🐱
+# Don Gato 😎
 
-Página de comunidad deportiva para acompañar la cuenta de TikTok de Mr. Cat:
+Página de comunidad deportiva para acompañar la cuenta de TikTok de Don Gato. Usa la misma mascota, colores (negro y amarillo), letra (TikTok Sans), frases y preguntas que los videos del proyecto `claudetrivia`:
 
 - **Trivia diaria** (`trivia.html`): 5 preguntas al día, iguales para todos. El resultado se comparte por WhatsApp con cuadritos 🟩🟥 y un enlace personal.
 - **Quiniela gratis** (`quiniela.html`): el aficionado elige L/E/V y su quiniela llega a tu WhatsApp. Incluye tabla general.
@@ -14,7 +14,7 @@ Es una página estática: no necesita servidor ni base de datos.
 |---|---|
 | `js/config.js` | Nombre de marca, TikTok, canal de WhatsApp, tu número, enlace de afiliado. **Empieza aquí.** |
 | `data/quiniela.js` | Partidos de la jornada, fecha de cierre, premio y tabla general. Cámbialo cada semana. |
-| `data/preguntas.js` | Banco de preguntas de la trivia. Entre más preguntas, más días sin repetir. |
+| `data/preguntas.js` y `data/frases.js` | Se generan solos desde el proyecto de TikTok (ver abajo). No los edites a mano. |
 
 ## Flujo semanal sugerido
 
@@ -22,7 +22,19 @@ Es una página estática: no necesita servidor ni base de datos.
 2. Publica en TikTok: “¿Quién gana? Llena la quiniela gratis, link en mi perfil”.
 3. Las quinielas te llegan por WhatsApp; al terminar la jornada cuenta aciertos y actualiza `TABLA`.
 4. Publica la tabla en TikTok y en el canal: eso trae a más participantes.
-5. Usa las preguntas de la trivia diaria como guiones para los videos de Mr. Cat.
+5. Cuando agregues trivias nuevas al proyecto de TikTok, actualiza la página (ver abajo).
+
+## Traer las trivias y frases del proyecto de TikTok
+
+Las preguntas de la trivia y las frases de Don Gato salen de `claudetrivia` (carpeta `trivias/` y `personalidad.py`).
+Se importan los formatos `trivia`, `pregunta_del_dia`, `verdadero_falso` y `quien_tiene_mas`.
+
+```bash
+pip install pyyaml
+python3 tools/importar_trivias.py ../claudetrivia
+```
+
+Las imágenes de `img/` y la fuente de `fonts/` (licencia OFL) también vienen de ese proyecto.
 
 ## Publicarla gratis
 

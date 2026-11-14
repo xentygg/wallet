@@ -47,7 +47,7 @@
 
   $("enviar").onclick = () => {
     const lineas = Q.partidos.map(p => `${p.local} vs ${p.visita}: ${guardado.picks[p.id]}`);
-    const texto = `🐱 QUINIELA ${C.marca}\n${Q.titulo}\nNombre: ${guardado.nombre.trim()}\n\n${lineas.join("\n")}\n\nCódigo: ${MC.miCodigo}`;
+    const texto = `😎 QUINIELA ${C.marca}\n${Q.titulo}\nNombre: ${guardado.nombre.trim()}\n\n${lineas.join("\n")}\n\nCódigo: ${MC.miCodigo}`;
     MC.compartirWhatsApp(texto, C.whatsappOrganizador);
   };
 

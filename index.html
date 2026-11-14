@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{marca} — Trivias y quinielas deportivas</title>
-  <meta name="description" content="Trivia deportiva diaria, quinielas gratis y datos curiosos con Mr. Cat.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <meta name="description" content="Trivia deportiva diaria, quinielas gratis y datos curiosos con Don Gato.">
+  <link rel="preload" href="fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="img/perfil.webp">
 </head>
 <body>
   <div id="header"></div>
@@ -15,7 +15,8 @@
   <main class="wrap">
     <div class="hero">
       <div id="gato-hero"></div>
-      <h1>¿Sabes de deportes?<br><span>Demuéstralo.</span></h1>
+      <h1>¿Sabes de deportes<br><span class="amarillo">o nomás opinas?</span></h1>
+      <span class="letrero">Aquí no hay VAR que te salve</span>
       <p id="eslogan"></p>
       <div class="fila">
         <a class="btn btn-pri" href="trivia.html">🧠 Jugar la trivia de hoy</a>
@@ -39,7 +40,7 @@
       <div class="card">
         <div class="ico">📱</div>
         <h3>Síguenos en TikTok</h3>
-        <p>Quizzes y datos curiosos todos los días con Mr. Cat.</p>
+        <p>Quizzes y datos curiosos todos los días con Don Gato.</p>
         <a class="btn btn-sec" id="link-tiktok" target="_blank" rel="noopener">Ver TikTok</a>
       </div>
     </div>
@@ -52,7 +53,7 @@
     </section>
 
     <section class="card">
-      <h2 class="titulo-sec">🐾 Invita a tus amigos</h2>
+      <h2 class="titulo-sec">Invita a tus compas</h2>
       <p>Comparte tu enlace personal. Así sabemos quién trae más gente a la comunidad.</p>
       <div class="ref-box">
         <input type="text" id="mi-link" readonly>
@@ -98,7 +99,7 @@
       e.target.textContent = "¡Copiado!";
     };
     document.getElementById("compartir").onclick = () =>
-      MC.compartirWhatsApp(`🐱 ¿Sabes de deportes? Juega la trivia diaria y la quiniela gratis de ${C.marca}: ${miLink}`);
+      MC.compartirWhatsApp(`😎 ¿Sabes de deportes o nomás opinas? Juega la trivia diaria y la quiniela gratis de ${C.marca}: ${miLink}`);
   </script>
 </body>
 </html>

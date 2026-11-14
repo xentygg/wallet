@@ -2,8 +2,8 @@
 //  CONFIGURACIÓN DE TU MARCA — edita solo este archivo
 // =====================================================================
 window.CONFIG = {
-  marca: "Mr. Cat Coronado",
-  eslogan: "Trivias, quinielas y datos curiosos del deporte 🐾",
+  marca: "Don Gato",
+  eslogan: "Trivias, quinielas y datos curiosos de futbol, NFL y béisbol. Aquí se ve quién sí sabe.",
 
   // Redes y comunidad
   tiktok: "https://www.tiktok.com/@TU_USUARIO",          // tu página de TikTok
