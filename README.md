@@ -2,7 +2,7 @@
 
 Página de comunidad deportiva de Don Gato (TikTok @mrcatstudio):
 
-- **Quiniela diaria con premio** (`/quiniela`): 5 partidos al día. Quien le atine a todos gana el premio del día (normalmente $300). Si hay varios ganadores, se reparte; si no hay, no se acumula. Una quiniela por persona al día.
+- **Quiniela diaria con premio** (`/quiniela`): 5 partidos al día. Quien le atine a todos gana el premio del día ($300). Si varios le atinan, gana quien más se acerque al total de goles (y si siguen empatados, quien envió primero): el premio no se divide. Si se cancela 1 partido el premio baja a $200; con 2 o más, la quiniela se anula. Si nadie gana, no se acumula. Una quiniela por persona al día. Cuenta el marcador a los 90 minutos más reposición.
 - **Cuentas y perfil** (`/entrar`, `/perfil`): registro con celular y contraseña. El perfil muestra racha, historial, aciertos, premios, trivia e invitados.
 - **Trivia diaria** (`/trivia`): 5 preguntas al día, las mismas para todos, con las frases de Don Gato.
 - **Panel del administrador** (`/admin`): publicar la quiniela del día, meter resultados (califica sola), ver ganadores, alertas de posibles trampas, anular, bloquear y marcar premios como pagados.

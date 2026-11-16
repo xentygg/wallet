@@ -125,7 +125,7 @@ const requiereUsuario = (req) => usuarioDe(req) || falla(401, "Necesitas iniciar
 function requiereAdmin(req) { const s = sesionDe(req); if (!s || !s.es_admin) falla(401, "Solo el administrador."); }
 
 // ------------------------------------------------------------------ lógica de la quiniela
-function partidosDe(qid) { return db.prepare("SELECT id, orden, liga, local, visita, hora, empate, resultado FROM partidos WHERE quiniela_id = ? ORDER BY orden").all(qid); }
+function partidosDe(qid) { return db.prepare("SELECT id, orden, liga, local, visita, hora, empate, resultado, goles_local, goles_visita FROM partidos WHERE quiniela_id = ? ORDER BY orden").all(qid); }
 
 function calificar(qid) {
   const ps = partidosDe(qid);
@@ -143,13 +143,28 @@ function calificar(qid) {
   return true;
 }
 
-function ganadoresDe(q) {
-  if (!q.calificada) return [];
-  const total = db.prepare("SELECT COUNT(*) n FROM partidos WHERE quiniela_id = ?").get(q.id).n;
-  const g = db.prepare(`SELECT e.id, e.usuario_id, e.pagado, u.apodo, u.nombre, u.telefono FROM entradas e JOIN usuarios u ON u.id = e.usuario_id
-                        WHERE e.quiniela_id = ? AND e.anulada = 0 AND e.aciertos = ?`).all(q.id, total);
-  const monto = g.length ? Math.floor(q.premio / g.length) : 0;
-  return g.map((x) => ({ ...x, monto }));
+// Reglas del premio: 1 partido cancelado = premio reducido; 2 o más = quiniela anulada (sin premio).
+function reglasDe(qid) {
+  const q = db.prepare("SELECT * FROM quinielas WHERE id = ?").get(qid);
+  const ps = partidosDe(qid);
+  const cancelados = ps.filter((p) => p.resultado === "C").length;
+  const conMarcador = ps.filter((p) => p.resultado && p.resultado !== "C");
+  const totalGoles = conMarcador.every((p) => p.goles_local !== null && p.goles_visita !== null)
+    ? conMarcador.reduce((s, p) => s + p.goles_local + p.goles_visita, 0) : null;
+  return { q, ps, cancelados, anulada: cancelados >= 2, premio: cancelados === 1 ? q.premio_cancelado : q.premio, totalGoles };
+}
+
+// Un solo ganador: entre quienes le atinaron a todo, el que más se acerque al total de goles; si empatan, el que envió primero.
+function ganadoresDe(qRef) {
+  const r = reglasDe(qRef.id);
+  if (!r.q || !r.q.calificada || r.anulada) return [];
+  const perfectos = db.prepare(`SELECT e.id, e.usuario_id, e.pagado, e.goles, e.creado, u.apodo, u.nombre, u.telefono FROM entradas e JOIN usuarios u ON u.id = e.usuario_id
+                                WHERE e.quiniela_id = ? AND e.anulada = 0 AND e.aciertos = ?`).all(r.q.id, r.ps.length);
+  if (!perfectos.length) return [];
+  const dif = (e) => (e.goles === null || r.totalGoles === null ? Infinity : Math.abs(e.goles - r.totalGoles));
+  perfectos.sort((a, b) => dif(a) - dif(b) || a.creado.localeCompare(b.creado) || a.id - b.id);
+  const g = perfectos[0];
+  return [{ ...g, monto: r.premio, empatados: perfectos.length, diferencia: dif(g) === Infinity ? null : dif(g) }];
 }
 
 function rachas(usuarioId) {
@@ -169,13 +184,17 @@ function quinielaPublica(q, usuario) {
     id: q.id, fecha: q.fecha, cierre: q.cierre, premio: q.premio, calificada: !!q.calificada,
     cerrada: Date.now() >= Date.parse(q.cierre),
     participantes: db.prepare("SELECT COUNT(*) n FROM entradas WHERE quiniela_id = ? AND anulada = 0").get(q.id).n,
-    partidos: ps.map((p) => ({ id: p.id, liga: p.liga, local: p.local, visita: p.visita, hora: p.hora, empate: !!p.empate, resultado: Date.now() >= Date.parse(q.cierre) ? p.resultado : null })),
+    partidos: ps.map((p) => ({ id: p.id, liga: p.liga, local: p.local, visita: p.visita, hora: p.hora, empate: !!p.empate,
+      ...(Date.now() >= Date.parse(q.cierre) ? { resultado: p.resultado, goles_local: p.goles_local, goles_visita: p.goles_visita } : { resultado: null }) })),
   };
   if (usuario) {
-    const e = db.prepare("SELECT picks, aciertos, anulada FROM entradas WHERE quiniela_id = ? AND usuario_id = ?").get(q.id, usuario.id);
-    out.mia = e ? { picks: JSON.parse(e.picks), aciertos: e.aciertos, anulada: !!e.anulada } : null;
+    const e = db.prepare("SELECT picks, aciertos, anulada, goles FROM entradas WHERE quiniela_id = ? AND usuario_id = ?").get(q.id, usuario.id);
+    out.mia = e ? { picks: JSON.parse(e.picks), aciertos: e.aciertos, anulada: !!e.anulada, goles: e.goles } : null;
   }
-  if (q.calificada) out.ganadores = ganadoresDe(q).map((g) => ({ apodo: g.apodo, monto: g.monto }));
+  const r = reglasDe(q.id);
+  out.premio_cancelado = q.premio_cancelado;
+  if (out.cerrada) Object.assign(out, { cancelados: r.cancelados, anulada: r.anulada, premio_final: r.anulada ? 0 : r.premio, total_goles: r.totalGoles });
+  if (q.calificada) out.ganadores = ganadoresDe(q).map((g) => ({ apodo: g.apodo, monto: g.monto, empatados: g.empatados }));
   return out;
 }
 
@@ -285,8 +304,10 @@ ruta("POST", "/api/quiniela/:id/enviar", async (req, res, p) => {
     if (!(pt.empate ? ["L", "E", "V"] : ["L", "V"]).includes(v)) falla(400, "Elige un resultado válido para cada partido.");
     picks[pt.id] = v;
   }
-  db.prepare("INSERT INTO entradas (quiniela_id, usuario_id, picks, ip, agente) VALUES (?, ?, ?, ?, ?)")
-    .run(q.id, u.id, JSON.stringify(picks), ipDe(req), limpiar(req.headers["user-agent"], 300));
+  const goles = Number(b.goles);
+  if (!Number.isInteger(goles) || goles < 0 || goles > 99) falla(400, "Escribe cuántos goles crees que habrá en total (para el desempate).");
+  db.prepare("INSERT INTO entradas (quiniela_id, usuario_id, picks, goles, ip, agente) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(q.id, u.id, JSON.stringify(picks), goles, ipDe(req), limpiar(req.headers["user-agent"], 300));
   responder(res, 201, { ok: true });
 });
 
@@ -337,11 +358,12 @@ ruta("POST", "/api/admin/quinielas", async (req, res) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) falla(400, "Fecha no válida.");
   if (Number.isNaN(Date.parse(b.cierre))) falla(400, "Hora de cierre no válida.");
   const premio = Math.max(0, Math.round(Number(b.premio) || 0));
+  const premioCancelado = b.premio_cancelado === undefined ? 200 : Math.max(0, Math.round(Number(b.premio_cancelado) || 0));
   const ps = Array.isArray(b.partidos) ? b.partidos : [];
   if (ps.length < 1 || ps.length > 10) falla(400, "Agrega entre 1 y 10 partidos.");
   for (const x of ps) if (!limpiar(x.local, 40) || !limpiar(x.visita, 40)) falla(400, "Cada partido necesita equipo local y visitante.");
   if (db.prepare("SELECT 1 FROM quinielas WHERE fecha = ?").get(fecha)) falla(409, "Ya existe una quiniela para esa fecha.");
-  const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio) VALUES (?, ?, ?)").run(fecha, new Date(b.cierre).toISOString(), premio);
+  const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio, premio_cancelado) VALUES (?, ?, ?, ?)").run(fecha, new Date(b.cierre).toISOString(), premio, premioCancelado);
   const ins = db.prepare("INSERT INTO partidos (quiniela_id, orden, liga, local, visita, hora, empate) VALUES (?, ?, ?, ?, ?, ?, ?)");
   ps.forEach((x, i) => ins.run(r.lastInsertRowid, i + 1, limpiar(x.liga, 30), limpiar(x.local, 40), limpiar(x.visita, 40), limpiar(x.hora, 30), x.empate === false ? 0 : 1));
   responder(res, 201, { ok: true, id: Number(r.lastInsertRowid) });
@@ -358,7 +380,7 @@ ruta("DELETE", "/api/admin/quinielas/:id", async (req, res, p) => {
 ruta("GET", "/api/admin/quinielas/:id", async (req, res, p) => {
   requiereAdmin(req);
   const q = db.prepare("SELECT * FROM quinielas WHERE id = ?").get(Number(p.id)) || falla(404, "No existe.");
-  const entradas = db.prepare(`SELECT e.id, e.picks, e.aciertos, e.ip, e.agente, e.anulada, e.pagado, e.creado,
+  const entradas = db.prepare(`SELECT e.id, e.picks, e.aciertos, e.goles, e.ip, e.agente, e.anulada, e.pagado, e.creado,
                                  u.id usuario_id, u.apodo, u.nombre, u.telefono, u.ip ip_registro, u.bloqueado
                                FROM entradas e JOIN usuarios u ON u.id = e.usuario_id WHERE e.quiniela_id = ? ORDER BY e.creado`).all(q.id);
   // Señales para revisar (no son prueba): misma IP o mismo aparato+IP en varias quinielas del día, o varias cuentas registradas desde la misma IP
@@ -373,8 +395,10 @@ ruta("GET", "/api/admin/quinielas/:id", async (req, res, p) => {
     const n = e.ip_registro ? cuentasIp.get(e.ip_registro).n : 0;
     if (n > 1) e.alertas.push(`${n} cuentas creadas desde la misma IP`);
   }
-  const ganadores = ganadoresDe(q).map((g) => ({ entrada_id: g.id, monto: g.monto }));
-  responder(res, 200, { quiniela: q, partidos: partidosDe(q.id), entradas, ganadores });
+  const ganadores = ganadoresDe(q).map((g) => ({ entrada_id: g.id, monto: g.monto, empatados: g.empatados, diferencia: g.diferencia }));
+  const r = reglasDe(q.id);
+  responder(res, 200, { quiniela: q, partidos: partidosDe(q.id), entradas, ganadores,
+    reglas: { cancelados: r.cancelados, anulada: r.anulada, premio: r.premio, total_goles: r.totalGoles } });
 });
 
 ruta("POST", "/api/admin/quinielas/:id/resultados", async (req, res, p) => {
@@ -383,10 +407,17 @@ ruta("POST", "/api/admin/quinielas/:id/resultados", async (req, res, p) => {
   const qid = Number(p.id);
   const q = db.prepare("SELECT cierre FROM quinielas WHERE id = ?").get(qid) || falla(404, "No existe.");
   if (Date.now() < Date.parse(q.cierre)) falla(400, "La quiniela sigue abierta. Mete los resultados después de la hora de cierre.");
-  const upd = db.prepare("UPDATE partidos SET resultado = ? WHERE id = ? AND quiniela_id = ?");
+  // Cada partido: { local, visita } (marcador al final del tiempo reglamentario), { cancelado: true } o vacío (pendiente)
+  const upd = db.prepare("UPDATE partidos SET resultado = ?, goles_local = ?, goles_visita = ? WHERE id = ? AND quiniela_id = ?");
   for (const pt of partidosDe(qid)) {
-    const v = b.resultados && b.resultados[pt.id];
-    upd.run((pt.empate ? ["L", "E", "V", "C"] : ["L", "V", "C"]).includes(v) ? v : null, pt.id, qid);
+    const m = (b.marcadores || {})[pt.id] || {};
+    if (m.cancelado) { upd.run("C", null, null, pt.id, qid); continue; }
+    const gl = m.local === "" || m.local === null || m.local === undefined ? null : Number(m.local);
+    const gv = m.visita === "" || m.visita === null || m.visita === undefined ? null : Number(m.visita);
+    if (gl === null || gv === null) { upd.run(null, null, null, pt.id, qid); continue; }
+    if (![gl, gv].every((x) => Number.isInteger(x) && x >= 0 && x <= 200)) falla(400, `Marcador no válido en ${pt.local} vs ${pt.visita}.`);
+    if (!pt.empate && gl === gv) falla(400, `${pt.local} vs ${pt.visita} no admite empate: pon el marcador final o márcalo como cancelado.`);
+    upd.run(gl > gv ? "L" : gl < gv ? "V" : "E", gl, gv, pt.id, qid);
   }
   responder(res, 200, { ok: true, calificada: calificar(qid) });
 });
@@ -494,5 +525,5 @@ module.exports = { servidor, normalizarTelefono, rachas, lunesDe, calificar, par
 const automatico = require("./automatico");
 servidor.listen(PORT, "127.0.0.1", () => {
   console.log(`Don Gato escuchando en http://127.0.0.1:${PORT}`);
-  automatico.iniciar({ calificar, fechaMX, sumarDias });
+  automatico.iniciar({ calificar, reglasDe, ganadoresDe, fechaMX, sumarDias });
 });

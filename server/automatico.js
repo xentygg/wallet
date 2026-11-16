@@ -9,7 +9,7 @@ const API_URL = (process.env.API_FOOTBALL_URL || "https://v3.football.api-sports
 const API_KEY = process.env.API_FOOTBALL_KEY || "";
 const ZONA = "America/Mexico_City";
 
-let deps = null;               // funciones del servidor: calificar, fechaMX, sumarDias
+let deps = null;               // funciones del servidor: calificar, reglasDe, ganadoresDe, fechaMX, sumarDias
 let corriendo = false;
 const ultimoIntento = new Map(); // fecha -> ms del último intento de armar (para no gastar consultas)
 let ultimaRevision = 0;
@@ -69,7 +69,7 @@ async function armar(fecha, minTs) {
 
   db.exec("BEGIN");
   try {
-    const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio, auto) VALUES (?, ?, ?, 1)").run(fecha, cierre, AJUSTES.premio);
+    const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio, premio_cancelado, auto) VALUES (?, ?, ?, ?, 1)").run(fecha, cierre, AJUSTES.premio, AJUSTES.premioConCancelado);
     const ins = db.prepare("INSERT INTO partidos (quiniela_id, orden, liga, local, visita, hora, empate, fixture_id) VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
     elegidos.forEach((f, i) => ins.run(r.lastInsertRowid, i + 1, String(f.league.name).slice(0, 30), String(f.teams.home.name).slice(0, 40),
       String(f.teams.away.name).slice(0, 40), etiquetaHora(f.fixture.timestamp), f.fixture.id));
@@ -79,18 +79,19 @@ async function armar(fecha, minTs) {
   return true;
 }
 
-// Resultado de un partido según las bases: tiempo reglamentario (90 min). Suspendido o cancelado = C.
+// Resultado según las bases: marcador al final del tiempo reglamentario (90 min + reposición, sin tiempos extra ni penales).
+// Suspendido o cancelado = C. Devuelve { r, h, a } o null si aún no termina.
 const FINALES = new Set(["FT", "AET", "PEN"]);
 const CANCELADOS = new Set(["PST", "CANC", "ABD", "AWD", "WO"]);
 function resultadoDe(f) {
   const st = f.fixture?.status?.short;
-  if (CANCELADOS.has(st)) return "C";
+  if (CANCELADOS.has(st)) return { r: "C", h: null, a: null };
   if (!FINALES.has(st)) return null;
   const ft = f.score?.fulltime;
   const h = ft && ft.home !== null && ft.home !== undefined ? ft.home : f.goals?.home;
   const a = ft && ft.away !== null && ft.away !== undefined ? ft.away : f.goals?.away;
   if (h === null || h === undefined || a === null || a === undefined) return null;
-  return h > a ? "L" : h < a ? "V" : "E";
+  return { r: h > a ? "L" : h < a ? "V" : "E", h, a };
 }
 
 async function revisarResultados() {
@@ -105,21 +106,21 @@ async function revisarResultados() {
     const fixtures = await consultar("/fixtures", { ids: ids.slice(i, i + 20).join("-"), timezone: ZONA });
     for (const f of fixtures) {
       const p = porId.get(f.fixture?.id);
-      const r = p && resultadoDe(f);
-      if (!r) continue;
-      db.prepare("UPDATE partidos SET resultado = ? WHERE id = ? AND resultado IS NULL").run(r, p.id);
+      const x = p && resultadoDe(f);
+      if (!x) continue;
+      db.prepare("UPDATE partidos SET resultado = ?, goles_local = ?, goles_visita = ? WHERE id = ? AND resultado IS NULL").run(x.r, x.h, x.a, p.id);
       quinielas.add(p.quiniela_id);
-      anotar("resultado", `${p.local} vs ${p.visita}: ${r === "C" ? "cancelado o suspendido (cuenta como acierto)" : r}`);
+      anotar("resultado", `${p.local} vs ${p.visita}: ${x.r === "C" ? "cancelado o suspendido (cuenta como acierto; el premio baja)" : `${x.h}-${x.a}`}`);
     }
   }
   for (const qid of quinielas) {
     if (!deps.calificar(qid)) continue;
-    const q = db.prepare("SELECT fecha, premio FROM quinielas WHERE id = ?").get(qid);
-    const total = db.prepare("SELECT COUNT(*) n FROM partidos WHERE quiniela_id = ?").get(qid).n;
-    const ganan = db.prepare("SELECT u.apodo, u.telefono FROM entradas e JOIN usuarios u ON u.id = e.usuario_id WHERE e.quiniela_id = ? AND e.anulada = 0 AND e.aciertos = ?").all(qid, total);
-    anotar(ganan.length ? "ganador" : "calificada", ganan.length
-      ? `Quiniela del ${q.fecha} calificada. 🏆 ${ganan.length} ganador(es): ${ganan.map((g) => `${g.apodo} (${g.telefono})`).join(", ")}. Revisa su INE y paga desde el panel.`
-      : `Quiniela del ${q.fecha} calificada. Nadie le atinó a todos.`);
+    const r = deps.reglasDe(qid);
+    const g = deps.ganadoresDe({ id: qid })[0];
+    if (r.anulada) anotar("aviso", `Quiniela del ${r.q.fecha} ANULADA: se cancelaron ${r.cancelados} partidos. No hay premio.`);
+    else anotar(g ? "ganador" : "calificada", g
+      ? `Quiniela del ${r.q.fecha} calificada. 🏆 Ganador: ${g.apodo} (${g.telefono}), $${g.monto}${g.empatados > 1 ? `. Desempate entre ${g.empatados} por total de goles (${r.totalGoles}).` : "."} Revisa su INE y paga desde el panel.`
+      : `Quiniela del ${r.q.fecha} calificada. Nadie le atinó a todos.`);
   }
 }
 

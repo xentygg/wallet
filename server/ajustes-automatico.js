@@ -2,6 +2,7 @@
 module.exports = {
   activo: true,                 // false = apagar la quiniela automática (el panel sigue funcionando a mano)
   premio: 300,                  // premio diario en pesos
+  premioConCancelado: 200,      // premio si se cancela 1 partido (con 2 o más, la quiniela se anula)
   partidos: 5,                  // partidos por quiniela
   minimoPartidos: 3,            // si hay menos que esto, ese día no se arma quiniela
   minutosCierreAntes: 10,       // la quiniela cierra estos minutos antes del primer partido

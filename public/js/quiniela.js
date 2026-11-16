@@ -13,6 +13,8 @@
   catch (e) { $("q-card").innerHTML = `<div class="error">${esc(e.message)}</div>`; return; }
   const q = datos.quiniela;
   const picks = {};
+  let golesTotal = "";
+  const marcador = (p) => (p.goles_local !== null && p.goles_local !== undefined ? `${p.goles_local}-${p.goles_visita}` : NOMBRES[p.resultado]);
 
   function pintar() {
     if (!q) {
@@ -26,50 +28,64 @@
     const total = q.partidos.length;
 
     let estado = "";
-    if (q.calificada) estado = mia ? (mia.anulada ? `<div class="error">Tu quiniela fue anulada por no cumplir las bases.</div>`
-      : `<div class="${mia.aciertos === total ? "exito" : "aviso"}">Le atinaste a <b>${mia.aciertos} de ${total}</b>. ${mia.aciertos === total ? "¡GANASTE! Te escribimos por WhatsApp para entregarte tu premio 🏆" : mia.aciertos === total - 1 ? "¡Estuviste a uno del premio! Mañana hay otra." : "Mañana hay otra oportunidad."}</div>`)
+    if (q.anulada) estado = `<div class="error">Esta quiniela se anuló porque se cancelaron ${q.cancelados} partidos. No hay premio este día.</div>`;
+    else if (q.calificada) estado = mia ? (mia.anulada ? `<div class="error">Tu quiniela fue anulada por no cumplir las bases.</div>`
+      : `<div class="${mia.aciertos === total ? "exito" : "aviso"}">Le atinaste a <b>${mia.aciertos} de ${total}</b>. ${mia.aciertos === total ? (q.ganadores && q.ganadores.length && q.ganadores[0].empatados > 1 ? "¡Le atinaste a todo! Hubo empate y se decidió por el total de goles: mira abajo quién ganó." : "¡GANASTE! Te escribimos por WhatsApp para entregarte tu premio 🏆") : mia.aciertos === total - 1 ? "¡Estuviste a uno del premio! Mañana hay otra." : "Mañana hay otra oportunidad."}</div>`)
       : `<div class="aviso">Esta quiniela ya tiene resultados.</div>`;
-    else if (mia) estado = `<div class="exito">✅ Ya enviaste tu quiniela${q.cerrada ? ". Esperando resultados…" : ". ¡Suerte!"}</div>`;
+    else if (mia) estado = `<div class="exito">✅ Ya enviaste tu quiniela${q.cerrada ? ". Esperando resultados…" : ". ¡Suerte!"}${mia.goles !== null && mia.goles !== undefined ? ` Tu desempate: <b>${mia.goles} goles</b>.` : ""}</div>`;
     else if (q.cerrada) estado = `<div class="aviso">La quiniela ya cerró. Vuelve mañana.</div>`;
     else if (!usuario) estado = `<div class="aviso">Para jugar necesitas una cuenta gratis. Es rápido.</div>`;
 
     $("q-card").innerHTML = `
       <h2 class="titulo-sec">⚽ Quiniela del ${esc(fmtFecha(q.fecha))}</h2>
       <div class="premio">
-        <div><small>PREMIO DEL DÍA</small><div class="monto">${pesos(q.premio)}</div></div>
+        <div><small>PREMIO DEL DÍA</small><div class="monto">${pesos(q.cerrada && q.premio_final !== undefined ? q.premio_final : q.premio)}</div></div>
         <div style="text-align:right;font-weight:700">Atínale a los ${total}<br>y es tuyo</div>
       </div>
       <p style="margin:0 0 4px">${q.cerrada ? "Cerró" : "Cierra"}: <b>${esc(fmtHora(q.cierre))}</b> (hora CDMX)${q.cerrada ? "" : ` · <span class="cuenta" id="cuenta"></span>`}</p>
       <p style="font-size:.9rem;margin:0 0 6px">Elige <b>L</b> (gana local), <b>E</b> (empate) o <b>V</b> (gana visita). Donde no hay empate (NFL, NBA, béisbol) solo aparecen L y V. Una quiniela por persona al día. ${q.participantes} participando.</p>
+      <p class="ayuda" style="margin:0 0 6px">Si se cancela 1 partido, el premio baja a ${pesos(q.premio_cancelado)}; si se cancelan 2 o más, la quiniela se anula. Si varios le atinan a todo, gana quien más se acerque al total de goles. <a href="/bases">Ver bases</a></p>
       ${estado}
       <div id="partidos">${q.partidos.map((p) => {
         const mio = mia && mia.picks[p.id];
         const botones = (p.empate ? ["L", "E", "V"] : ["L", "V"]).map((x) => {
           let cls = "pick";
           if (mio) {
-            if (mio === x) cls += q.calificada ? (p.resultado === "C" || p.resultado === x ? " ok" : " mal") : " sel";
-            if (q.calificada && p.resultado === x && mio !== x) cls += " res";
+            if (mio === x) cls += p.resultado ? (p.resultado === "C" || p.resultado === x ? " ok" : " mal") : " sel";
+            if (p.resultado === x && mio !== x) cls += " res";
           } else if (picks[p.id] === x) cls += " sel";
           return `<button class="${cls}" data-p="${p.id}" data-v="${x}" ${puedeJugar ? "" : "disabled"} aria-label="${NOMBRES[x]}">${x}</button>`;
         }).join("");
         return `<div class="partido">
           ${p.liga ? `<span class="liga">${esc(p.liga)}</span>` : ""}
           <div class="eq">${esc(p.local)}</div><div class="picks">${botones}</div><div class="eq v">${esc(p.visita)}</div>
-          <div class="fecha">${esc(p.hora || "")}${q.calificada && p.resultado ? ` · Resultado: <b>${NOMBRES[p.resultado]}</b>` : ""}</div>
+          <div class="fecha">${esc(p.hora || "")}${p.resultado ? ` · Resultado: <b>${esc(marcador(p))}</b>` : ""}</div>
         </div>`;
       }).join("")}</div>
       <div id="acciones" style="margin-top:16px"></div>
-      ${q.calificada && q.ganadores ? `<div style="margin-top:16px">${q.ganadores.length
-        ? `<b>🏆 Ganador${q.ganadores.length > 1 ? "es" : ""}:</b> ${q.ganadores.map((g) => `${esc(g.apodo)} (${pesos(g.monto)})`).join(", ")}`
+      ${q.calificada && q.ganadores && !q.anulada ? `<div style="margin-top:16px">${q.ganadores.length
+        ? `<b>🏆 Ganador:</b> ${esc(q.ganadores[0].apodo)} (${pesos(q.ganadores[0].monto)})${q.ganadores[0].empatados > 1 ? ` · Desempate entre ${q.ganadores[0].empatados} por total de goles (${q.total_goles}).` : ""}`
         : "Nadie le atinó a todos esta vez."}</div>` : ""}`;
 
     const acc = $("acciones");
     if (puedeJugar) {
-      const faltan = q.partidos.filter((p) => !picks[p.id]).length;
       acc.innerHTML = `
+        <div style="margin-bottom:14px">
+          <label for="goles">Desempate: ¿cuántos goles habrá en total en los ${total} partidos?</label>
+          <input type="number" id="goles" min="0" max="99" inputmode="numeric" placeholder="Ej. 12" value="${esc(golesTotal)}">
+          <div class="ayuda">Solo cuenta si varios le atinan a todo: gana quien más se acerque.</div>
+        </div>
         <div id="q-error" class="error" hidden></div>
-        <div class="fila"><button class="btn btn-pri" id="enviar" ${faltan ? "disabled" : ""}>${faltan ? `Te faltan ${faltan} partido(s)` : "Enviar mi quiniela"}</button></div>
+        <div class="fila"><button class="btn btn-pri" id="enviar"></button></div>
         <p class="ayuda" style="text-align:center">Una vez enviada no se puede cambiar.</p>`;
+      const boton = () => {
+        const faltan = q.partidos.filter((p) => !picks[p.id]).length;
+        const sinGoles = !/^\d{1,2}$/.test(golesTotal);
+        $("enviar").disabled = faltan > 0 || sinGoles;
+        $("enviar").textContent = faltan ? `Te faltan ${faltan} partido(s)` : sinGoles ? "Escribe tu desempate de goles" : "Enviar mi quiniela";
+      };
+      boton();
+      $("goles").oninput = () => { golesTotal = $("goles").value.trim(); boton(); };
       document.querySelectorAll(".pick").forEach((b) => b.onclick = () => { picks[b.dataset.p] = b.dataset.v; pintar(); });
       $("enviar").onclick = enviar;
     } else if (!usuario && !q.cerrada) {
@@ -85,8 +101,8 @@
     if (!confirm("¿Enviar tu quiniela? Ya no podrás cambiarla.")) return;
     e.target.disabled = true;
     try {
-      await MC.api("POST", `/api/quiniela/${q.id}/enviar`, { picks });
-      q.mia = { picks: { ...picks }, aciertos: null, anulada: false };
+      await MC.api("POST", `/api/quiniela/${q.id}/enviar`, { picks, goles: Number(golesTotal) });
+      q.mia = { picks: { ...picks }, aciertos: null, anulada: false, goles: Number(golesTotal) };
       q.participantes++;
       pintar();
     } catch (err) {
@@ -118,16 +134,16 @@
     $("en-juego").hidden = false;
     $("en-juego").innerHTML = `
       <h2 class="titulo-sec">⏱️ En juego: quiniela del ${esc(fmtFecha(ej.fecha))}</h2>
-      <p style="margin:0 0 8px">${ej.calificada ? "Terminada." : `Van ${listos} de ${total} resultados.`} ${ej.participantes} participantes.</p>
+      <p style="margin:0 0 8px">${ej.anulada ? "Anulada: se cancelaron 2 o más partidos." : ej.calificada ? "Terminada." : `Van ${listos} de ${total} resultados.`} ${ej.participantes} participantes.${mia && mia.goles !== null && mia.goles !== undefined ? ` Tu desempate: ${mia.goles} goles.` : ""}</p>
       ${ej.partidos.map((p) => {
         const mio = mia && mia.picks[p.id];
         const ok = p.resultado && mio && (p.resultado === "C" || p.resultado === mio);
         return `<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)">
           <span>${esc(p.local)} vs ${esc(p.visita)}</span>
-          <span>${mio ? `Tú: <b>${mio}</b> · ` : ""}${p.resultado ? `<span class="badge ${mio ? (ok ? "verde" : "rojo") : "gris"}">${NOMBRES[p.resultado]}</span>` : '<span class="badge gris">Pendiente</span>'}</span>
+          <span>${mio ? `Tú: <b>${mio}</b> · ` : ""}${p.resultado ? `<span class="badge ${mio ? (ok ? "verde" : "rojo") : "gris"}">${esc(marcador(p))}</span>` : '<span class="badge gris">Pendiente</span>'}</span>
         </div>`;
       }).join("")}
-      ${ej.calificada && ej.ganadores ? `<p style="margin-top:12px">${ej.ganadores.length ? `🏆 ${ej.ganadores.map((g) => `${esc(g.apodo)} (${pesos(g.monto)})`).join(", ")}` : "Nadie le atinó a todos."}</p>` : ""}`;
+      ${ej.calificada && ej.ganadores && !ej.anulada ? `<p style="margin-top:12px">${ej.ganadores.length ? `🏆 ${esc(ej.ganadores[0].apodo)} (${pesos(ej.ganadores[0].monto)})${ej.ganadores[0].empatados > 1 ? ` · desempate por goles (${ej.total_goles})` : ""}` : "Nadie le atinó a todos."}</p>` : ""}`;
   }
 
   // Tabla semanal y resultados anteriores
@@ -141,7 +157,7 @@
     $("anteriores").innerHTML = lista.map((x) => `
       <div style="padding:10px 0;border-bottom:1px solid var(--line)">
         <b>${esc(fmtFecha(x.fecha))}</b> · ${x.participantes} participantes<br>
-        <span style="color:var(--muted)">${x.ganadores.length ? `🏆 ${x.ganadores.map((g) => `${esc(g.apodo)} (${pesos(g.monto)})`).join(", ")}` : "Sin ganador"}</span>
+        <span style="color:var(--muted)">${x.anulada ? "Anulada (2 o más partidos cancelados)" : x.ganadores.length ? `🏆 ${esc(x.ganadores[0].apodo)} (${pesos(x.ganadores[0].monto)})` : "Sin ganador"}</span>
       </div>`).join("");
   }).catch(() => {});
 })();

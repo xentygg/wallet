@@ -11,7 +11,9 @@
   <style>
     .fila-partido { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 6px; margin-bottom: 8px; align-items: center; }
     .fila-partido > * { min-width: 0; }
-    .fila-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .fila-3 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .marcador { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .marcador input[type=number] { width: 64px; text-align: center; padding: 8px; }
     @media (max-width: 620px) { .fila-partido { grid-template-columns: 1fr 1fr; } .fila-3 { grid-template-columns: 1fr; } .fila-partido .empate { grid-column: 1 / -1; } }
     .empate { display: flex; gap: 6px; align-items: center; font-size: .85rem; white-space: nowrap; }
     .empate input { width: 18px; height: 18px; accent-color: var(--amarillo); }
@@ -71,6 +73,7 @@
               <div><label>Fecha</label><input type="date" id="n-fecha" value="${tieneHoy ? manana : d.hoy}"></div>
               <div><label>Cierre (hora de tu celular)</label><input type="datetime-local" id="n-cierre"></div>
               <div><label>Premio ($)</label><input type="number" id="n-premio" value="300" min="0"></div>
+              <div><label>Premio si se cancela 1 partido ($)</label><input type="number" id="n-premio-c" value="200" min="0"></div>
             </div>
             <p class="ayuda">El cierre debe ser antes de que empiece el primer partido.</p>
             <div><label>Partidos (liga · local · visitante · hora · ¿puede haber empate?)</label>
@@ -92,7 +95,7 @@
           .filter((p) => p.local || p.visita);
         try {
           if (!$("n-cierre").value) throw new Error("Pon la hora de cierre.");
-          const r = await MC.api("POST", "/api/admin/quinielas", { fecha: $("n-fecha").value, cierre: new Date($("n-cierre").value).toISOString(), premio: $("n-premio").value, partidos });
+          const r = await MC.api("POST", "/api/admin/quinielas", { fecha: $("n-fecha").value, cierre: new Date($("n-cierre").value).toISOString(), premio: $("n-premio").value, premio_cancelado: $("n-premio-c").value, partidos });
           detalle(r.id);
         } catch (err) { $("n-err").textContent = err.message; $("n-err").hidden = false; }
       };
@@ -107,19 +110,26 @@
         <p><a href="#" id="volver">← Volver</a></p>
         <section class="card">
           <h2 class="titulo-sec">Quiniela del ${esc(q.fecha)}</h2>
-          <p>Cierre: ${esc(new Date(q.cierre).toLocaleString("es-MX", { timeZone: "America/Mexico_City" }))} · Premio ${pesos(q.premio)} · ${d.entradas.length} quinielas</p>
-          <h3>Resultados</h3>
-          ${d.partidos.map((p) => `<div class="partido" style="grid-template-columns:1fr 140px">
-            <div>${p.liga ? `<small class="amarillo">${esc(p.liga)}</small><br>` : ""}<b>${esc(p.local)}</b> vs <b>${esc(p.visita)}</b>${p.empate ? "" : ' <span class="badge gris">sin empate</span>'}</div>
-            <select id="r-${p.id}"><option value="">— Pendiente —</option>${(p.empate ? ["L", "E", "V", "C"] : ["L", "V", "C"]).map((x) => `<option value="${x}" ${p.resultado === x ? "selected" : ""}>${x} · ${NOM[x]}</option>`).join("")}</select>
+          <p>Cierre: ${esc(new Date(q.cierre).toLocaleString("es-MX", { timeZone: "America/Mexico_City" }))} · Premio ${pesos(q.premio)} (${pesos(q.premio_cancelado)} si se cancela 1) · ${d.entradas.length} quinielas</p>
+          <h3>Resultados (marcador al final de los 90 minutos + reposición)</h3>
+          ${d.partidos.map((p) => `<div class="partido" style="grid-template-columns:1fr auto">
+            <div>${p.liga ? `<small class="amarillo">${esc(p.liga)}</small><br>` : ""}<b>${esc(p.local)}</b> vs <b>${esc(p.visita)}</b>${p.empate ? "" : ' <span class="badge gris">sin empate</span>'}${p.resultado ? ` <span class="badge verde">${p.resultado}</span>` : ""}</div>
+            <div class="marcador">
+              <input type="number" min="0" id="gl-${p.id}" value="${p.goles_local ?? ""}" aria-label="Goles ${esc(p.local)}" ${p.resultado === "C" ? "disabled" : ""}> -
+              <input type="number" min="0" id="gv-${p.id}" value="${p.goles_visita ?? ""}" aria-label="Goles ${esc(p.visita)}" ${p.resultado === "C" ? "disabled" : ""}>
+              <label class="empate"><input type="checkbox" id="c-${p.id}" ${p.resultado === "C" ? "checked" : ""}> Cancelado</label>
+            </div>
           </div>`).join("")}
           <div class="fila" style="margin-top:12px"><button class="btn btn-pri" id="guardar">Guardar resultados y calificar</button>
           ${d.entradas.length ? "" : '<button class="btn btn-sec" id="borrar">Borrar quiniela</button>'}</div>
-          <p class="ayuda">Se califica sola cuando los 5 partidos tienen resultado. "C" = cancelado (cuenta como acierto para todos).</p>
+          <p class="ayuda">Se califica sola cuando todos los partidos tienen marcador o están cancelados. Cancelado cuenta como acierto para todos; 1 cancelado baja el premio y 2 o más anulan la quiniela.</p>
         </section>
         <section class="card">
           <h2 class="titulo-sec">Ganadores</h2>
-          ${q.calificada ? (d.ganadores.length ? `<p>${d.ganadores.length} ganador(es) · ${pesos(d.ganadores[0].monto)} cada uno. Pide su INE antes de pagar.</p>` : "<p>Nadie le atinó a todos.</p>") : "<p>Aún sin resultados.</p>"}
+          ${d.reglas.anulada ? `<div class="error">Quiniela anulada: se cancelaron ${d.reglas.cancelados} partidos. No hay premio.</div>`
+            : q.calificada ? (d.ganadores.length ? `<p>🏆 Gana <b>${esc((d.entradas.find((e) => e.id === d.ganadores[0].entrada_id) || {}).apodo || "")}</b> · ${pesos(d.ganadores[0].monto)}${d.reglas.cancelados ? " (premio reducido por partido cancelado)" : ""}.
+              ${d.ganadores[0].empatados > 1 ? `Hubo ${d.ganadores[0].empatados} con todos los aciertos: se desempató por total de goles (${d.reglas.total_goles}); se quedó a ${d.ganadores[0].diferencia ?? "?"} de diferencia.` : ""} Pide su INE antes de pagar.</p>` : "<p>Nadie le atinó a todos.</p>")
+            : "<p>Aún sin resultados.</p>"}
         </section>
         <section class="card">
           <h2 class="titulo-sec">Quinielas recibidas</h2>
@@ -128,7 +138,7 @@
             <b>${esc(e.apodo)}</b> · ${esc(e.nombre)} · <a href="https://wa.me/52${esc(e.telefono)}" target="_blank" rel="noopener">${esc(e.telefono)}</a>
             ${ganan.has(e.id) ? `<span class="badge amarillo">GANA ${pesos(ganan.get(e.id))}</span>` : ""}
             ${e.anulada ? '<span class="badge rojo">ANULADA</span>' : ""}${e.bloqueado ? ' <span class="badge rojo">CUENTA BLOQUEADA</span>' : ""}
-            <br><small>${d.partidos.map((p) => `${esc(e.picks[p.id])}`).join(" · ")} ${e.aciertos !== null ? `· <b>${e.aciertos} aciertos</b>` : ""} · enviada ${esc(e.creado)} UTC · IP ${esc(e.ip)}</small>
+            <br><small>${d.partidos.map((p) => `${esc(e.picks[p.id])}`).join(" · ")} · desempate: <b>${e.goles ?? "—"} goles</b> ${e.aciertos !== null ? `· <b>${e.aciertos} aciertos</b>` : ""} · enviada ${esc(e.creado)} UTC · IP ${esc(e.ip)}</small>
             ${e.alertas.map((a) => `<div class="alerta">⚠️ ${esc(a)}</div>`).join("")}
             <div class="fila" style="justify-content:flex-start;margin-top:6px">
               <button class="btn btn-sec mini-btn" data-acc="anular" data-id="${e.id}" data-v="${e.anulada ? 0 : 1}">${e.anulada ? "Quitar anulación" : "Anular"}</button>
@@ -139,9 +149,10 @@
         </section>`;
       $("volver").onclick = (ev) => { ev.preventDefault(); inicio(); };
       $("guardar").onclick = async () => {
-        const resultados = Object.fromEntries(d.partidos.map((p) => [p.id, $(`r-${p.id}`).value]));
-        try { await MC.api("POST", `/api/admin/quinielas/${id}/resultados`, { resultados }); detalle(id); } catch (err) { alert(err.message); }
+        const marcadores = Object.fromEntries(d.partidos.map((p) => [p.id, $(`c-${p.id}`).checked ? { cancelado: true } : { local: $(`gl-${p.id}`).value, visita: $(`gv-${p.id}`).value }]));
+        try { await MC.api("POST", `/api/admin/quinielas/${id}/resultados`, { marcadores }); detalle(id); } catch (err) { alert(err.message); }
       };
+      d.partidos.forEach((p) => $(`c-${p.id}`).onchange = (ev) => { $(`gl-${p.id}`).disabled = $(`gv-${p.id}`).disabled = ev.target.checked; });
       if ($("borrar")) $("borrar").onclick = async () => {
         if (!confirm("¿Borrar esta quiniela?")) return;
         try { await MC.api("DELETE", `/api/admin/quinielas/${id}`); inicio(); } catch (err) { alert(err.message); }
