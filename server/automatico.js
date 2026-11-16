@@ -37,12 +37,22 @@ const etiquetaHora = (ts) => {
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
 
+// ¿Qué tan preferida es la liga de este partido? (posición en AJUSTES.ligas, o -1 si no está)
+function prioridadDe(f) {
+  const nombre = String(f.league?.name || ""), local = f.teams?.home?.name, visita = f.teams?.away?.name;
+  return AJUSTES.ligas.findIndex((l) => {
+    const coincide = (l.id !== undefined && l.id === f.league?.id && (!l.buscar || new RegExp(l.buscar, "i").test(nombre)))
+      || (l.buscar && new RegExp(l.buscar, "i").test(nombre));
+    return coincide && (!l.soloEquipos || l.soloEquipos.includes(local) || l.soloEquipos.includes(visita));
+  });
+}
+const enEspanol = (equipo) => (AJUSTES.selecciones && AJUSTES.selecciones[equipo]) || equipo;
+
 // Elige los partidos: primero por orden de liga, luego por hora. Prefiere partidos desde la hora mínima.
 function elegir(fixtures, minTs) {
-  const prioridad = new Map(AJUSTES.ligas.map((l, i) => [l.id, i]));
-  const candidatos = fixtures.filter((f) =>
-    prioridad.has(f.league?.id) && f.fixture?.status?.short === "NS" && f.fixture.timestamp >= minTs);
-  const orden = (a, b) => prioridad.get(a.league.id) - prioridad.get(b.league.id) || a.fixture.timestamp - b.fixture.timestamp;
+  const candidatos = fixtures.filter((f) => f.fixture?.status?.short === "NS" && f.fixture.timestamp >= minTs && prioridadDe(f) >= 0);
+  const pr = new Map(candidatos.map((f) => [f, prioridadDe(f)]));
+  const orden = (a, b) => pr.get(a) - pr.get(b) || a.fixture.timestamp - b.fixture.timestamp;
   const preferidos = candidatos.filter((f) => horaMX(f.fixture.timestamp) >= AJUSTES.horaMinimaPartido).sort(orden);
   let elegidos = preferidos.slice(0, AJUSTES.partidos);
   if (elegidos.length < AJUSTES.partidos) {
@@ -50,6 +60,16 @@ function elegir(fixtures, minTs) {
     elegidos = elegidos.concat(resto.slice(0, AJUSTES.partidos - elegidos.length));
   }
   return elegidos.sort((a, b) => a.fixture.timestamp - b.fixture.timestamp);
+}
+
+// Para el panel: qué ligas había ese día (ayuda a encontrar ids nuevos)
+function resumenLigas(fixtures) {
+  const c = new Map();
+  for (const f of fixtures) {
+    if (f.fixture?.status?.short !== "NS") continue;
+    const k = `${f.league?.name} (id ${f.league?.id})`; c.set(k, (c.get(k) || 0) + 1);
+  }
+  return [...c.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, n]) => `${k} ×${n}`).join(", ") || "ninguna";
 }
 
 async function armar(fecha, minTs) {
@@ -61,7 +81,7 @@ async function armar(fecha, minTs) {
   const fixtures = await consultar("/fixtures", { date: fecha, timezone: ZONA });
   const elegidos = elegir(fixtures, minTs);
   if (elegidos.length < AJUSTES.minimoPartidos) {
-    anotar("aviso", `No hay suficientes partidos para la quiniela del ${fecha} (encontré ${elegidos.length}). Lo vuelvo a intentar en una hora.`);
+    anotar("aviso", `No hay suficientes partidos para la quiniela del ${fecha} (encontré ${elegidos.length}). Lo vuelvo a intentar en una hora. Ligas con partidos ese día: ${resumenLigas(fixtures)}.`);
     return false;
   }
   const primero = elegidos[0].fixture.timestamp * 1000;
@@ -72,13 +92,13 @@ async function armar(fecha, minTs) {
   try {
     const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio, premio_cancelado, auto) VALUES (?, ?, ?, ?, 1)").run(fecha, cierre, AJUSTES.premio, AJUSTES.premioConCancelado);
     const ins = db.prepare("INSERT INTO partidos (quiniela_id, orden, liga, local, visita, hora, empate, fixture_id) VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
-    elegidos.forEach((f, i) => ins.run(r.lastInsertRowid, i + 1, String(f.league.name).slice(0, 30), String(f.teams.home.name).slice(0, 40),
-      String(f.teams.away.name).slice(0, 40), etiquetaHora(f.fixture.timestamp), f.fixture.id));
+    elegidos.forEach((f, i) => ins.run(r.lastInsertRowid, i + 1, String(f.league.name).slice(0, 30), enEspanol(String(f.teams.home.name)).slice(0, 40),
+      enEspanol(String(f.teams.away.name)).slice(0, 40), etiquetaHora(f.fixture.timestamp), f.fixture.id));
     qidNueva = r.lastInsertRowid;
     db.exec("COMMIT");
   } catch (e) { db.exec("ROLLBACK"); throw e; }
   deps.avisarQuinielaDiscord(Number(qidNueva));
-  anotar("quiniela", `Publiqué la quiniela del ${fecha}: ${elegidos.map((f) => `${f.teams.home.name} vs ${f.teams.away.name} (${f.league.name})`).join(" · ")}`);
+  anotar("quiniela", `Publiqué la quiniela del ${fecha}: ${elegidos.map((f) => `${enEspanol(f.teams.home.name)} vs ${enEspanol(f.teams.away.name)} (${f.league.name}, id ${f.league.id})`).join(" · ")}`);
   return true;
 }
 
@@ -161,4 +181,4 @@ function iniciar(dependencias) {
   setInterval(() => ciclo(), 10 * 60000).unref();
 }
 
-module.exports = { iniciar, ciclo, activo, _pruebas: { elegir, resultadoDe } };
+module.exports = { iniciar, ciclo, activo, _pruebas: { elegir, resultadoDe, prioridadDe, resumenLigas } };

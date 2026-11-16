@@ -35,7 +35,7 @@ La primera vez muestra la **contraseña del panel**: guárdala. Para actualizar 
 
 Con la clave de API-Football en el servidor, la página trabaja sola:
 
-- A partir de las 17:00 (CDMX) publica la quiniela del día siguiente: 5 partidos, primero Liga MX y luego las demás ligas en orden (`server/ajustes-automatico.js`). Prefiere partidos desde las 11:00 y cierra 10 minutos antes del primero.
+- A partir de las 17:00 (CDMX) publica la quiniela del día siguiente: 5 partidos, primero Liga MX y luego las demás ligas en orden, incluidas selecciones (amistosos de México, Nations League de CONCACAF y UEFA, eliminatorias, Copa Oro) para las fechas FIFA (`server/ajustes-automatico.js`). Prefiere partidos desde las 11:00 y cierra 10 minutos antes del primero.
 - Revisa resultados cada 20 minutos después del cierre y califica sola. Cuenta el marcador a los 90 minutos; los suspendidos o cancelados cuentan como acierto para todos.
 - Todo queda anotado en la sección **Automático** del panel, incluidos los ganadores.
 - Si un día ya publicaste una quiniela a mano, no la reemplaza.
