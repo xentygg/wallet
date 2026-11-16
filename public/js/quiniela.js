@@ -95,7 +95,8 @@
     } else if (!usuario && !q.cerrada) {
       acc.innerHTML = `<div class="fila"><a class="btn btn-pri" href="/entrar?nueva=1&volver=/quiniela">Crear cuenta y jugar</a><a class="btn btn-sec" href="/entrar?volver=/quiniela">Ya tengo cuenta</a></div>`;
     } else if (mia) {
-      acc.innerHTML = `<div class="fila"><button class="btn btn-wa" id="retar">Retar a un compa por WhatsApp</button></div>`;
+      acc.innerHTML = `${MC.discord("corto", "¡Ya jugaste! Ahora vive los partidos con la comunidad")}
+        <div class="fila" style="margin-top:12px"><button class="btn btn-wa" id="retar">Retar a un compa por WhatsApp</button></div>`;
       $("retar").onclick = () => MC.compartirWhatsApp(`😎 Ya llené la quiniela de ${C.marca}: si le atinas a los ${total} partidos te ganas ${pesos(q.premio)}. Es gratis: ${MC.urlConMiRef("/quiniela")}`);
     }
     if (!q.cerrada) cuentaRegresiva();

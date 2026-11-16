@@ -355,7 +355,6 @@ ruta("GET", "/api/portada", async (req, res) => {
   responder(res, 200, {
     quiniela: abierta ? quinielaPublica(abierta, usuarioDe(req)) : null,
     muro, pagado, ganadores,
-    jugadores: db.prepare("SELECT COUNT(*) n FROM usuarios WHERE bloqueado = 0").get().n,
   });
 });
 

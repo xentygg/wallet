@@ -9,6 +9,9 @@ window.CONFIG = {
   // Redes y comunidad
   tiktok: "https://www.tiktok.com/@mrcatstudio",
 
+  // Comunidad en Discord: pega aquí el enlace de invitación (que no caduque), p. ej. "https://discord.gg/abc123"
+  discord: "",
+
   // Enlace de invitación al grupo de WhatsApp. Déjalo vacío ("") mientras esté deshabilitado:
   // la página dirá que abre pronto y ofrecerá escribir al número de abajo.
   grupoWhatsApp: "",

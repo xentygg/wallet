@@ -99,6 +99,7 @@
           <button class="btn btn-wa" id="wa">Retar a un compa por WhatsApp</button>
           <button class="btn btn-sec" id="copiar">Copiar resultado</button>
         </div>
+        <div style="margin-top:16px;text-align:left">${MC.discord("corto", "Presume tu resultado en el Discord")}</div>
         <p style="color:var(--muted);margin-top:18px">Mañana viene otra, y más difícil. Mientras, ¿ya llenaste la <a href="/quiniela">quiniela</a>?</p>
       </div>`;
     $("wa").onclick = () => MC.compartirWhatsApp(texto);

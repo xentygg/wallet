@@ -29,6 +29,9 @@
       <p style="color:var(--muted)">Cargando la quiniela de hoy…</p>
     </section>
 
+    <!-- Comunidad en Discord -->
+    <div id="discord-portada"></div>
+
     <!-- Cómo funciona -->
     <section>
       <h2 class="titulo-sec">¿Cómo funciona?</h2>
@@ -81,10 +84,12 @@
       </div>
     </section>
 
+    <div id="discord-final"></div>
+
     <section class="card">
-      <h2 class="titulo-sec">💬 Únete a la comunidad</h2>
-      <p id="canal-texto">Resultados de la quiniela, trivias exclusivas y avisos en el grupo de WhatsApp.</p>
-      <a class="btn btn-wa" id="link-canal" target="_blank" rel="noopener">Entrar al grupo</a>
+      <h2 class="titulo-sec">💬 ¿Dudas o premios?</h2>
+      <p>Escríbele directo a Don Gato por WhatsApp.</p>
+      <a class="btn btn-wa" id="link-canal" target="_blank" rel="noopener">Escribir por WhatsApp</a>
     </section>
   </main>
 
@@ -133,7 +138,7 @@
           <div class="fila"><a class="btn btn-pri" href="/trivia">Jugar la trivia mientras</a></div>`;
       }
 
-      const tira = [`<div><b>${d.jugadores}</b><span>jugadores</span></div>`, `<div><b>${pesos(q ? q.premio : 300)}</b><span>premio diario</span></div>`];
+      const tira = [`<div><b>${pesos(q ? q.premio : 300)}</b><span>premio diario</span></div>`, `<div><b>Gratis</b><span>para jugar</span></div>`];
       if (d.pagado > 0) tira.push(`<div><b>${pesos(d.pagado)}</b><span>pagados en premios</span></div>`);
       else if (d.ganadores > 0) tira.push(`<div><b>${d.ganadores}</b><span>ganadores</span></div>`);
       $("tira").innerHTML = tira.join(""); $("tira").hidden = false;
@@ -163,13 +168,9 @@
     }
 
     // ---------- Comunidad, registro e invitaciones ----------
-    const canal = $("link-canal");
-    if (C.grupoWhatsApp) canal.href = C.grupoWhatsApp;
-    else {
-      $("canal-texto").textContent = "El grupo de WhatsApp abre muy pronto. Mientras, escríbele directo a Don Gato.";
-      canal.textContent = "Escribir por WhatsApp";
-      canal.href = "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent("Hola Don Gato 😎, vengo de la página.");
-    }
+    $("link-canal").href = "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent("Hola Don Gato 😎, vengo de la página.");
+    $("discord-portada").innerHTML = MC.discord("grande");
+    $("discord-final").innerHTML = MC.discord("corto", "¿Ya estás en el Discord de Don Gato?");
     if (C.registro.activo) {
       $("registro").hidden = false;
       $("reg-titulo").textContent = C.registro.titulo;
@@ -190,7 +191,7 @@
       e.target.textContent = "¡Copiado!";
     };
     $("compartir").onclick = () =>
-      MC.compartirWhatsApp(`😎 Quiniela gratis de ${C.marca}: atínale a los 5 partidos y gánate $300. Entra aquí: ${$("mi-link").value}`);
+      MC.compartirWhatsApp(`😎 Quiniela gratis de ${C.marca}: atínale a los 5 partidos y gánate $300. Entra aquí: ${$("mi-link").value}${C.discord ? `\nY únete a la comunidad en Discord: ${C.discord}` : ""}`);
   </script>
 </body>
 </html>

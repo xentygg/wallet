@@ -64,6 +64,7 @@
         ${link("/trivia", "Trivia", "trivia")}
         ${link("/quiniela", "Quiniela", "quiniela")}
         ${link("/entrar", "Entrar", "perfil", "nav-cuenta")}
+        ${C.discord ? `<a href="${C.discord}" target="_blank" rel="noopener" class="nav-discord">Discord</a>` : ""}
       </nav>
     </header>`;
   }
@@ -75,7 +76,7 @@
     return `
     <footer class="pie">
       ${aviso}
-      <p><a href="${C.tiktok}" target="_blank" rel="noopener">TikTok</a> · ${C.grupoWhatsApp
+      <p>${C.discord ? `<a href="${C.discord}" target="_blank" rel="noopener">Discord</a> · ` : ""}<a href="${C.tiktok}" target="_blank" rel="noopener">TikTok</a> · ${C.grupoWhatsApp
         ? `<a href="${C.grupoWhatsApp}" target="_blank" rel="noopener">Grupo de WhatsApp</a>`
         : `<a href="https://wa.me/${C.whatsappOrganizador}" target="_blank" rel="noopener">WhatsApp</a>`}
         · <a href="/bases">Bases de la quiniela</a> · <a href="/privacidad">Aviso de privacidad</a></p>
@@ -101,5 +102,28 @@
     return usuario;
   }
 
-  window.MC = { store, api, esc, urlConMiRef, urlRegistro, compartirWhatsApp, gato, avatar, montar };
+  // Invitación a la comunidad de Discord. "tipo": portada (grande) o corto (después de jugar)
+  function discord(tipo, texto) {
+    if (!C.discord) return "";
+    if (tipo === "corto") return `
+      <div class="discord-corto">
+        <div><b>${texto || "Sigue los partidos en vivo con la comunidad"}</b><span>Resultados, ganadores y retos en el Discord de Don Gato.</span></div>
+        <a class="btn btn-discord" href="${C.discord}" target="_blank" rel="noopener">Entrar al Discord</a>
+      </div>`;
+    return `
+      <section class="discord-grande">
+        <span class="letrero">La comunidad de Don Gato</span>
+        <h2>Únete al Discord 🎮</h2>
+        <p>Aquí es donde se arma la buena. Entra gratis y no te pierdas nada:</p>
+        <ul>
+          <li>⚽ <b>Partidos en vivo</b> con la comunidad, y quién va ganando la quiniela</li>
+          <li>🏆 <b>Ganadores del día</b> y comprobantes de pago</li>
+          <li>🧠 <b>Retos y trivias exclusivas</b> de Don Gato</li>
+          <li>💬 <b>Platica, presume y discute</b> con gente que sí sabe de futbol</li>
+        </ul>
+        <a class="btn btn-discord btn-grande" href="${C.discord}" target="_blank" rel="noopener">Entrar al Discord gratis</a>
+      </section>`;
+  }
+
+  window.MC = { discord, store, api, esc, urlConMiRef, urlRegistro, compartirWhatsApp, gato, avatar, montar };
 })();
