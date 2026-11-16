@@ -4,6 +4,7 @@ El mismo sistema sirve varias **marcas**. Cada una vive en `marcas/<id>/` (`marc
 
 - Don Gato: `curl -fsSL https://raw.githubusercontent.com/xentygg/wallet/claude/crear-algo-ganar-dinero-njrn13/deploy/instalar.sh | bash`
 - La Quiniela del Lic: `curl -fsSL https://raw.githubusercontent.com/xentygg/wallet/claude/crear-algo-ganar-dinero-njrn13/deploy/instalar.sh | INSTANCIA=licenciado DOMINIO=quinielalic.com bash`
+- **Misma quiniela en las dos páginas:** la página de origen (la que tiene `API_FOOTBALL_KEY`) comparte sus quinielas si tiene `SYNC_TOKEN`; la otra las copia con el mismo `SYNC_TOKEN` y `SYNC_ORIGEN=http://127.0.0.1:3000`. Partidos, cierre, premio y resultados iguales; jugadores y ganadores aparte.
 - Cambiar el Discord a otra marca: `node server/discord-configurar.js --rebrand` con el `.env` de esa instancia.
 
 ---

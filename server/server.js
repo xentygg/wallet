@@ -623,12 +623,14 @@ ruta("GET", "/api/admin/automatico", async (req, res) => {
   requiereAdmin(req);
   responder(res, 200, {
     activo: automatico.activo(),
+    copia: sincronizar.esSeguidora(),
     log: db.prepare("SELECT creado, tipo, mensaje FROM auto_log ORDER BY id DESC LIMIT 40").all(),
   });
 });
 ruta("POST", "/api/admin/automatico/ahora", async (req, res) => {
   requiereAdmin(req);
-  await automatico.ciclo(true);
+  if (sincronizar.esSeguidora()) await sincronizar.sincronizar();
+  else await automatico.ciclo(true);
   responder(res, 200, { ok: true });
 });
 
@@ -662,8 +664,17 @@ ruta("GET", "/api/discord", async (req, res) => {
 });
 
 const automatico = require("./automatico");
+const sincronizar = require("./sincronizar");
+// La otra página del servidor copia de aquí la quiniela (si ambas comparten SYNC_TOKEN)
+ruta("GET", "/api/sync/quinielas", async (req, res) => {
+  if (!sincronizar.TOKEN || !igualSeguro(String(req.headers["x-sync-token"] || ""), sincronizar.TOKEN)) falla(403, "No autorizado.");
+  const desde = String(new URL(req.url, "http://x").searchParams.get("desde") || fechaMX());
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(desde)) falla(400, "Fecha no válida.");
+  responder(res, 200, { quinielas: sincronizar.quinielasParaCompartir(desde) });
+});
 servidor.listen(PORT, "127.0.0.1", () => {
   console.log(`${MARCA.sitio_nombre} (marca ${MARCA.id}) escuchando en http://127.0.0.1:${PORT}`);
   automatico.iniciar({ calificar, reglasDe, ganadoresDe, fechaMX, sumarDias, avisarQuinielaDiscord, avisarResultadosDiscord });
   require("./discord-gateway").iniciar(anotarLog);
+  sincronizar.iniciar({ calificar, fechaMX, sumarDias, avisarQuinielaDiscord, avisarResultadosDiscord, anotar: anotarLog });
 });

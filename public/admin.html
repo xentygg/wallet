@@ -215,8 +215,9 @@
       const hora = (t) => new Date(t.replace(" ", "T") + "Z").toLocaleString("es-MX", { timeZone: "America/Mexico_City", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
       $("auto").innerHTML = `<h2 class="titulo-sec">🤖 Automático</h2>
         ${a.activo ? `<div class="exito">Encendido: la quiniela de mañana se publica sola cada tarde y los resultados se califican solos.</div>`
+          : a.copia ? `<div class="exito">Esta página copia la quiniela de la otra página del servidor: mismos partidos, cierre y resultados. Los jugadores y ganadores son aparte.</div>`
           : `<div class="aviso">Apagado: falta la clave de API-Football en el servidor.</div>`}
-        <div class="fila" style="justify-content:flex-start;margin:12px 0"><button class="btn btn-sec mini-btn" id="auto-ahora" ${a.activo ? "" : "disabled"}>Revisar ahora</button></div>
+        <div class="fila" style="justify-content:flex-start;margin:12px 0"><button class="btn btn-sec mini-btn" id="auto-ahora" ${a.activo || a.copia ? "" : "disabled"}>Revisar ahora</button></div>
         <div>${a.log.map((l) => `<div style="padding:7px 0;border-bottom:1px solid var(--line);font-size:.9rem">
           ${iconos[l.tipo] || "•"} <span style="color:var(--muted)">${esc(hora(l.creado))}</span> · ${esc(l.mensaje)}</div>`).join("") || "<p>Sin actividad todavía.</p>"}</div>`;
       if ($("auto-ahora")) $("auto-ahora").onclick = async (e) => {

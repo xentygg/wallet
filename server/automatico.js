@@ -14,7 +14,8 @@ let corriendo = false;
 const ultimoIntento = new Map(); // fecha -> ms del último intento de armar (para no gastar consultas)
 let ultimaRevision = 0;
 
-const activo = () => Boolean(API_KEY) && AJUSTES.activo;
+// Si esta página copia la quiniela de otra (SYNC_ORIGEN), no arma la suya
+const activo = () => Boolean(API_KEY) && AJUSTES.activo && !process.env.SYNC_ORIGEN;
 function anotar(tipo, mensaje) {
   db.prepare("INSERT INTO auto_log (tipo, mensaje) VALUES (?, ?)").run(tipo, String(mensaje).slice(0, 500));
   db.prepare("DELETE FROM auto_log WHERE id <= (SELECT MAX(id) - 300 FROM auto_log)").run();
@@ -215,6 +216,7 @@ function iniciar(dependencias) {
   deps = dependencias;
   if (!AJUSTES.activo) return console.log("[automático] desactivado en ajustes-automatico.js");
   if (!API_KEY) return console.log("[automático] falta API_FOOTBALL_KEY: la quiniela automática está apagada");
+  if (process.env.SYNC_ORIGEN) return console.log("[automático] esta página copia la quiniela de otra: no arma la suya");
   anotar("inicio", "Quiniela automática encendida.");
   setTimeout(() => ciclo(), 5000);
   setInterval(() => ciclo(), 10 * 60000).unref();
