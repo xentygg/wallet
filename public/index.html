@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tips Fútbol Live</title>
+<style>
+  :root {
+    --bg: #07110c; --panel: #0f1f17; --line: #1d3a2b; --text: #eef6f1; --muted: #8fb3a0;
+    --home: #2fd47a; --draw: #f2c94c; --away: #4aa3ff; --gift: #ff4fa3;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 100%; height: 100%; background: var(--bg); overflow: hidden; }
+  body { font-family: "Segoe UI", Roboto, system-ui, sans-serif; color: var(--text); }
+  /* Lienzo fijo 1080x1920 escalado a la ventana (OBS: fuente Navegador 1080x1920) */
+  #stage { width: 1080px; height: 1920px; position: absolute; left: 0; top: 0; transform-origin: 0 0; padding: 70px 60px;
+    display: flex; flex-direction: column; gap: 36px;
+    background: radial-gradient(1200px 700px at 50% 0%, #12402a 0%, transparent 70%),
+                repeating-linear-gradient(90deg, transparent 0 134px, rgba(255,255,255,.025) 134px 270px), var(--bg); }
+  header { display: flex; justify-content: space-between; align-items: center; }
+  .brand { font-size: 46px; font-weight: 900; letter-spacing: 1px; }
+  .brand span { color: var(--home); }
+  .live { background: #e5224d; padding: 8px 20px; border-radius: 10px; font-weight: 800; font-size: 30px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+
+  .card { background: var(--panel); border: 2px solid var(--line); border-radius: 36px; padding: 44px; position: relative; }
+  #main.enter { animation: enter .7s cubic-bezier(.2,1.3,.4,1); }
+  @keyframes enter { from { transform: translateY(60px) scale(.94); opacity: 0; } }
+  #main.gift { border-color: var(--gift); box-shadow: 0 0 60px rgba(255,79,163,.45); }
+  .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 30px; }
+  .by { font-size: 32px; margin-top: 14px; color: var(--muted); min-height: 40px; }
+  .by b { color: var(--text); }
+  #main.gift .by b { color: var(--gift); }
+  .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 20px; margin: 36px 0 12px; text-align: center; }
+  .team { font-size: 54px; font-weight: 900; line-height: 1.05; }
+  .vs { color: var(--muted); font-size: 36px; font-weight: 700; }
+  .form { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+  .form i { font-style: normal; width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; font-size: 24px; font-weight: 800; color: #07110c; }
+  .V { background: var(--home); } .E { background: var(--draw); } .D { background: #e5224d; color: #fff !important; }
+  .xg { text-align: center; color: var(--muted); font-size: 30px; margin-top: 18px; }
+  .xg b { color: var(--text); }
+
+  .bar { display: flex; height: 110px; border-radius: 22px; overflow: hidden; margin-top: 34px; }
+  .bar div { display: grid; place-items: center; font-size: 40px; font-weight: 900; color: #07110c; transition: flex-grow 1s; min-width: 0; }
+  .labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 28px; margin-top: 12px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .stat { background: #0b1912; border: 2px solid var(--line); border-radius: 26px; padding: 28px; }
+  .stat .k { color: var(--muted); font-size: 28px; }
+  .stat .v { font-size: 66px; font-weight: 900; margin-top: 4px; }
+  .stat .o { color: var(--muted); font-size: 26px; }
+  .meter { height: 12px; border-radius: 6px; background: #1d3a2b; margin-top: 14px; overflow: hidden; }
+  .meter div { height: 100%; background: var(--home); transition: width 1s; }
+  .scores { display: flex; gap: 16px; margin-top: 12px; }
+  .scores div { flex: 1; text-align: center; background: #12291d; border-radius: 16px; padding: 12px 0; font-size: 40px; font-weight: 900; }
+  .scores small { display: block; font-size: 22px; color: var(--muted); font-weight: 600; }
+
+  #queue h3 { font-size: 32px; color: var(--muted); margin-bottom: 16px; font-weight: 700; }
+  #queue ol { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  #queue li { display: flex; justify-content: space-between; font-size: 30px; background: #0b1912; border-radius: 16px; padding: 14px 22px; }
+  #queue li.gift { border: 2px solid var(--gift); }
+  #queue li span { color: var(--muted); }
+  #queue .empty { color: var(--muted); font-size: 28px; }
+
+  footer { margin-top: auto; text-align: center; }
+  .how { font-size: 38px; font-weight: 800; background: var(--home); color: #07110c; border-radius: 22px; padding: 22px; }
+  .how small { display: block; font-size: 26px; font-weight: 600; margin-top: 4px; }
+  .legal { color: var(--muted); font-size: 24px; margin-top: 18px; line-height: 1.4; }
+
+  #pop { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(0); background: var(--gift); color: #fff;
+    padding: 40px 60px; border-radius: 32px; font-size: 52px; font-weight: 900; text-align: center; box-shadow: 0 20px 80px rgba(255,79,163,.6); z-index: 5; }
+  #pop.show { animation: pop 3.2s ease forwards; }
+  @keyframes pop { 10% { transform: translate(-50%,-50%) scale(1.1); } 18%,85% { transform: translate(-50%,-50%) scale(1); } 100% { transform: translate(-50%,-50%) scale(0); } }
+  #toast { position: absolute; left: 60px; right: 60px; bottom: 330px; background: #2a1414; border: 2px solid #e5224d; border-radius: 18px; padding: 18px 24px; font-size: 28px; opacity: 0; transition: opacity .4s; }
+  #toast.show { opacity: 1; }
+  .confetti { position: absolute; top: -40px; width: 18px; height: 28px; z-index: 4; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(2000px) rotate(720deg); } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <header>
+    <div class="brand">TIPS <span>FÚTBOL</span> · DATOS</div>
+    <div class="live">EN VIVO</div>
+  </header>
+
+  <section id="main" class="card">
+    <div class="meta"><span id="league">Cargando…</span><span id="date"></span></div>
+    <div class="by" id="by"></div>
+    <div class="teams">
+      <div><div class="team" id="home">—</div><div class="form" id="formH"></div></div>
+      <div class="vs">VS</div>
+      <div><div class="team" id="away">—</div><div class="form" id="formA"></div></div>
+    </div>
+    <div class="xg">Goles esperados: <b id="xg">–</b></div>
+    <div class="bar">
+      <div id="b1" style="background:var(--home)"></div>
+      <div id="bx" style="background:var(--draw)"></div>
+      <div id="b2" style="background:var(--away)"></div>
+    </div>
+    <div class="labels"><span>Local · cuota justa <b id="o1"></b></span><span>Empate <b id="ox"></b></span><span>Visita <b id="o2"></b></span></div>
+  </section>
+
+  <section class="grid">
+    <div class="stat"><div class="k">Más de 2.5 goles</div><div class="v" id="over25">–</div><div class="o" id="oo25"></div><div class="meter"><div id="m25"></div></div></div>
+    <div class="stat"><div class="k">Ambos marcan</div><div class="v" id="btts">–</div><div class="o" id="obtts"></div><div class="meter"><div id="mbtts"></div></div></div>
+    <div class="stat"><div class="k">Más de 1.5 goles</div><div class="v" id="over15">–</div><div class="o" id="oo15"></div><div class="meter"><div id="m15"></div></div></div>
+    <div class="stat"><div class="k">Marcadores más probables</div><div class="scores" id="scores"></div></div>
+  </section>
+
+  <section id="queue" class="card">
+    <h3>Cola de pedidos</h3>
+    <ol id="qlist"></ol>
+  </section>
+
+  <footer>
+    <div class="how">Escribe <u>!p equipo</u> o <u>!p equipo1 vs equipo2</u><small>Manda un regalo y tu pedido pasa al frente de la cola</small></div>
+    <div class="legal">+18 · Probabilidades estimadas con un modelo estadístico (Poisson) sobre resultados pasados. No son garantías ni consejo financiero. Juega con responsabilidad. <span id="src"></span></div>
+  </footer>
+
+  <div id="pop"></div>
+  <div id="toast"></div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const pct = (p) => Math.round(p * 100) + '%';
+  const odd = (p) => (p > 0 ? (1 / p).toFixed(2) : '–');
+
+  function fit() {
+    const s = Math.min(innerWidth / 1080, innerHeight / 1920);
+    $('stage').style.transform = `translate(${(innerWidth - 1080 * s) / 2}px, ${(innerHeight - 1920 * s) / 2}px) scale(${s})`;
+  }
+  addEventListener('resize', fit); fit();
+
+  function form(el, f) { el.innerHTML = (f || []).map((r) => `<i class="${r}">${r}</i>`).join(''); }
+  function setStat(id, p) { $(id).textContent = pct(p); }
+
+  function showAnalysis(a) {
+    const m = $('main');
+    m.classList.remove('enter', 'gift'); void m.offsetWidth;
+    m.classList.add('enter'); if (a.tier === 'gift') m.classList.add('gift');
+    $('league').textContent = a.league; $('date').textContent = a.date;
+    $('by').innerHTML = a.by ? `${a.tier === 'gift' ? '🎁 Prioridad para' : 'Pedido por'} <b>@${a.by}</b>` : 'Partido destacado';
+    $('home').textContent = a.home.name; $('away').textContent = a.away.name;
+    form($('formH'), a.home.form); form($('formA'), a.away.form);
+    $('xg').textContent = `${a.xg.home.toFixed(2)} – ${a.xg.away.toFixed(2)}`;
+    [['b1', a.p1], ['bx', a.px], ['b2', a.p2]].forEach(([id, p]) => { $(id).style.flexGrow = p; $(id).textContent = p > 0.12 ? pct(p) : ''; });
+    $('o1').textContent = odd(a.p1); $('ox').textContent = odd(a.px); $('o2').textContent = odd(a.p2);
+    setStat('over25', a.over25); setStat('btts', a.btts); setStat('over15', a.over15);
+    $('oo25').textContent = 'cuota justa ' + odd(a.over25); $('obtts').textContent = 'cuota justa ' + odd(a.btts); $('oo15').textContent = 'cuota justa ' + odd(a.over15);
+    $('m25').style.width = pct(a.over25); $('mbtts').style.width = pct(a.btts); $('m15').style.width = pct(a.over15);
+    $('scores').innerHTML = a.topScores.map((s) => `<div>${s.score}<small>${pct(s.p)}</small></div>`).join('');
+  }
+
+  function showQueue(items) {
+    $('qlist').innerHTML = items.length
+      ? items.slice(0, 5).map((q, i) => `<li class="${q.tier}">${i + 1}. ${q.match}<span>${q.tier === 'gift' ? '🎁 ' : ''}@${q.by}</span></li>`).join('')
+        + (items.length > 5 ? `<li><span>+${items.length - 5} más</span></li>` : '')
+      : '<li class="empty">Vacía — ¡pide tu partido en el chat!</li>';
+  }
+
+  function gift(e) {
+    const p = $('pop');
+    p.innerHTML = `🎁 ¡Gracias @${e.user}!<br><span style="font-size:36px">${e.count > 1 ? e.count + '× ' : ''}${e.gift}</span>`;
+    p.classList.remove('show'); void p.offsetWidth; p.classList.add('show');
+    const colors = ['#2fd47a', '#f2c94c', '#4aa3ff', '#ff4fa3', '#fff'];
+    for (let i = 0; i < 60; i++) {
+      const c = document.createElement('div');
+      c.className = 'confetti';
+      c.style.left = Math.random() * 1080 + 'px';
+      c.style.background = colors[i % colors.length];
+      c.style.animationDuration = 2 + Math.random() * 2 + 's';
+      c.style.animationDelay = Math.random() * 0.6 + 's';
+      $('stage').appendChild(c);
+      setTimeout(() => c.remove(), 5000);
+    }
+  }
+
+  let toastT;
+  function toast(text) { $('toast').textContent = text; $('toast').classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('show'), 4000); }
+
+  const es = new EventSource('/events');
+  es.onmessage = (m) => {
+    const e = JSON.parse(m.data);
+    if (e.type === 'analysis') showAnalysis(e.data);
+    else if (e.type === 'queue') showQueue(e.items);
+    else if (e.type === 'gift') gift(e);
+    else if (e.type === 'toast') toast(e.text);
+    else if (e.type === 'hello') $('src').textContent = e.source === 'ejemplo' ? '· DATOS DE EJEMPLO' : '· Datos: ' + e.source;
+  };
+</script>
+</body>
+</html>

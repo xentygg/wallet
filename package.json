@@ -1,0 +1,14 @@
+{
+  "name": "tips-futbol-live",
+  "version": "1.0.0",
+  "description": "Overlay para lives de TikTok con probabilidades de fútbol pedidas por el chat",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "demo": "node src/server.js --demo"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "tiktok-live-connector": "^2.5.0"
+  }
+}
