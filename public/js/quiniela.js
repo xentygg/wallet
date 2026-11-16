@@ -23,7 +23,7 @@
     if (!q) {
       $("q-card").innerHTML = `
         <h2 class="titulo-sec">⚽ Quiniela diaria</h2>
-        <p>La quiniela de hoy se publica muy pronto. Síguenos en <a href="${C.tiktok}" target="_blank" rel="noopener">TikTok</a> para enterarte.</p>`;
+        <p>La próxima quiniela se publica todos los días a partir de las 5:00 pm. ${C.discord ? `Entérate primero en el <a href="${C.discord}" target="_blank" rel="noopener">Discord</a>.` : ""}</p>`;
       return;
     }
     const mia = q.mia;

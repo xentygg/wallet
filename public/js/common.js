@@ -76,7 +76,7 @@
     return `
     <footer class="pie">
       ${aviso}
-      <p>${C.discord ? `<a href="${C.discord}" target="_blank" rel="noopener">Discord</a> · ` : ""}<a href="${C.tiktok}" target="_blank" rel="noopener">TikTok</a> · ${C.grupoWhatsApp
+      <p>${C.discord ? `<a href="${C.discord}" target="_blank" rel="noopener">Discord</a> · ` : ""}${C.tiktok ? `<a href="${C.tiktok}" target="_blank" rel="noopener">TikTok</a> · ` : ""}${C.grupoWhatsApp
         ? `<a href="${C.grupoWhatsApp}" target="_blank" rel="noopener">Grupo de WhatsApp</a>`
         : `<a href="https://wa.me/${C.whatsappOrganizador}" target="_blank" rel="noopener">WhatsApp</a>`}
         · <a href="/bases">Bases de la quiniela</a> · <a href="/privacidad">Aviso de privacidad</a></p>

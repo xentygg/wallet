@@ -7,7 +7,7 @@ window.CONFIG = {
   eslogan: "Trivias, quinielas y datos curiosos de futbol, NFL y béisbol. Aquí se ve quién sí sabe.",
 
   // Redes y comunidad
-  tiktok: "https://www.tiktok.com/@mrcatstudio",
+  tiktok: "",   // vacío = no se muestra TikTok en la página. Para volver a mostrarlo: "https://www.tiktok.com/@mrcatstudio"
 
   // Comunidad en Discord: pega aquí el enlace de invitación (que no caduque), p. ej. "https://discord.gg/abc123"
   discord: "",

@@ -58,12 +58,6 @@
         <p>5 preguntas nuevas cada día. Compara tu resultado con tus amigos.</p>
         <a class="btn btn-sec" href="/trivia">Jugar</a>
       </div>
-      <div class="card">
-        <div class="ico">📱</div>
-        <h3>Síguenos en TikTok</h3>
-        <p>Quizzes y datos curiosos todos los días con Don Gato.</p>
-        <a class="btn btn-sec" id="link-tiktok" target="_blank" rel="noopener">Ver TikTok</a>
-      </div>
     </div>
 
     <section id="registro" class="card destacada" hidden>
@@ -104,7 +98,6 @@
     const sesion = MC.montar("inicio");
     $("gato-hero").innerHTML = MC.gato;
     $("eslogan").textContent = C.eslogan;
-    $("link-tiktok").href = C.tiktok;
 
     // ---------- Quiniela de hoy, números y muro de ganadores ----------
     MC.api("GET", "/api/portada").then((d) => {
