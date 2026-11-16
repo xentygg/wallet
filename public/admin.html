@@ -214,9 +214,9 @@
       const iconos = { quiniela: "📋", resultado: "⚽", ganador: "🏆", calificada: "✅", aviso: "⚠️", error: "❌", inicio: "🔌" };
       const hora = (t) => new Date(t.replace(" ", "T") + "Z").toLocaleString("es-MX", { timeZone: "America/Mexico_City", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
       $("auto").innerHTML = `<h2 class="titulo-sec">🤖 Automático</h2>
-        ${a.pausado && (a.activo || a.copia) ? `<div class="error">⏸️ <b>Modo automático APAGADO.</b> No se ${a.copia ? "copian" : "arman"} quinielas nuevas: publícalas tú a mano. Las que ya están publicadas se siguen calificando solas.</div>`
+        ${a.pausado && (a.activo || a.copia) ? `<div class="error">⏸️ <b>Modo automático APAGADO.</b> No se publican quinielas nuevas solas: publícalas tú a mano. Las que ya están publicadas se siguen calificando solas.</div>`
           : a.activo ? `<div class="exito">Encendido: la quiniela de mañana se publica sola cada tarde y los resultados se califican solos.</div>`
-          : a.copia ? `<div class="exito">Esta página copia la quiniela de la otra página del servidor: mismos partidos, cierre y resultados. Los jugadores y ganadores son aparte.</div>`
+          : a.copia ? `<div class="exito">Encendido: la quiniela de mañana se publica sola cada tarde y los resultados se califican solos.</div>`
           : `<div class="aviso">Apagado: falta la clave de API-Football en el servidor.</div>`}
         <div class="fila" style="justify-content:flex-start;margin:12px 0"><button class="btn btn-sec mini-btn" id="auto-ahora" ${a.activo || a.copia ? "" : "disabled"}>Revisar ahora</button>
           ${a.activo || a.copia ? `<button class="btn mini-btn ${a.pausado ? "btn-pri" : "btn-sec"}" id="auto-pausa">${a.pausado ? "▶️ Encender modo automático" : "⏸️ Apagar modo automático"}</button>` : ""}</div>

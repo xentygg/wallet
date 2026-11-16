@@ -634,7 +634,7 @@ ruta("POST", "/api/admin/automatico/pausa", async (req, res) => {
   if (typeof b.pausado !== "boolean") falla(400, "Falta indicar si se apaga o se enciende.");
   db.ponerAjuste("auto_pausado", b.pausado ? 1 : 0);
   anotarLog(b.pausado ? "aviso" : "inicio", b.pausado
-    ? "Apagaste el modo automático: no se arman ni se copian quinielas nuevas (las que ya están se siguen calificando)."
+    ? "Apagaste el modo automático: ya no se publican quinielas nuevas solas (las que ya están se siguen calificando)."
     : "Encendiste el modo automático.");
   responder(res, 200, { ok: true, pausado: b.pausado });
 });

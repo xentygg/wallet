@@ -44,7 +44,7 @@ async function sincronizar() {
   try {
     const desde = deps.sumarDias(deps.fechaMX(), -DIAS_ATRAS);
     const r = await fetch(`${ORIGEN}/api/sync/quinielas?desde=${desde}`, { headers: { "x-sync-token": TOKEN }, signal: AbortSignal.timeout(15000) });
-    if (!r.ok) throw new Error(`la otra página respondió ${r.status}`);
+    if (!r.ok) throw new Error(`el servicio de partidos respondió ${r.status}`);
     const { quinielas } = await r.json();
     const vistas = new Set();
     const pausado = db.autoPausado();   // apagado: solo se copian resultados de las quinielas que ya hay aquí
@@ -54,11 +54,11 @@ async function sincronizar() {
       if (pausado && (!local || local.origen_id !== q.id)) continue;
       if (local && local.origen_id !== q.id) {
         if (entradasDe(local.id) === 0) { db.prepare("DELETE FROM quinielas WHERE id = ?").run(local.id); local = null; }   // la rehicieron en el origen
-        else { avisarUnaVez(`dif-${q.fecha}-${q.id}`, "aviso", `La quiniela del ${q.fecha} cambió en la otra página, pero aquí ya hay quinielas enviadas: se conserva la de aquí.`); continue; }
+        else { avisarUnaVez(`dif-${q.fecha}-${q.id}`, "aviso", `La quiniela del ${q.fecha} tuvo cambios, pero ya hay quinielas enviadas: se conserva la que está publicada.`); continue; }
       }
       if (!local) {
         const id = crearCopia(q);
-        deps.anotar("quiniela", `Copié la quiniela del ${q.fecha}: ${q.partidos.map((p) => `${p.local} vs ${p.visita}`).join(" · ")}`);
+        deps.anotar("quiniela", `Publiqué la quiniela del ${q.fecha}: ${q.partidos.map((p) => `${p.local} vs ${p.visita}`).join(" · ")}`);
         deps.avisarQuinielaDiscord(id);
         local = db.prepare("SELECT * FROM quinielas WHERE id = ?").get(id);
       }
@@ -73,7 +73,7 @@ async function sincronizar() {
         }
       }
       if (cambio && deps.calificar(local.id)) {
-        deps.anotar("calificada", `Quiniela del ${q.fecha} calificada con los resultados de la otra página.`);
+        deps.anotar("calificada", `Quiniela del ${q.fecha} calificada.`);
         deps.avisarResultadosDiscord(local.id);
       }
     }
@@ -81,18 +81,21 @@ async function sincronizar() {
     if (!pausado) for (const l of db.prepare("SELECT id, fecha FROM quinielas WHERE fecha >= ? AND origen_id IS NOT NULL").all(desde)) {
       if (!vistas.has(l.fecha) && entradasDe(l.id) === 0) {
         db.prepare("DELETE FROM quinielas WHERE id = ?").run(l.id);
-        deps.anotar("aviso", `La quiniela del ${l.fecha} se borró en la otra página; aquí también.`);
+        deps.anotar("aviso", `Se retiró la quiniela del ${l.fecha}.`);
       }
     }
   } catch (e) {
-    avisarUnaVez(`err-${e.message}`, "error", `No pude copiar la quiniela de la otra página: ${e.message}`);
+    avisarUnaVez(`err-${e.message}`, "error", `No pude actualizar la quiniela: ${e.message}`);
   } finally { corriendo = false; }
 }
 
 function iniciar(dependencias) {
   deps = dependencias;
   if (!esSeguidora()) return;
-  deps.anotar("inicio", "Esta página copia la quiniela de la otra (misma quiniela, jugadores y ganadores aparte).");
+  // Limpiar de la bitácora los mensajes viejos que mencionaban a la otra página
+  db.prepare("DELETE FROM auto_log WHERE mensaje LIKE '%otra página%' OR mensaje LIKE '%otra (misma quiniela%' OR mensaje LIKE 'Copié la quiniela%'").run();
+  db.prepare("UPDATE auto_log SET mensaje = 'Apagaste el modo automático: ya no se publican quinielas nuevas solas (las que ya están se siguen calificando).' WHERE mensaje LIKE 'Apagaste el modo automático: no se arman ni se copian%'").run();
+  deps.anotar("inicio", "Quiniela automática encendida.");
   setTimeout(sincronizar, 4000);
   setInterval(sincronizar, 5 * 60000).unref();
 }
