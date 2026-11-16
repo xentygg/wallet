@@ -9,6 +9,7 @@ const VIEW = 1n << 10n, SEND = 1n << 11n, REACT = 1n << 6n, HISTORY = 1n << 16n,
   MANAGE_MSG = 1n << 13n;
 const THREADS = (1n << 35n) | (1n << 36n) | (1n << 38n);
 const s = (n) => String(n);
+const EDAD = Boolean(MARCA.discord_bloqueo_edad);   // aviso de "¿eres mayor de 18?" al entrar al canal
 
 function leerCasinos() {
   try { return JSON.parse(fs.readFileSync(path.join(MARCA.dir, "casinos.json"), "utf8")).casinos || null; } catch { return null; }
@@ -103,19 +104,23 @@ async function configurar({ guildId, roles, canales, existentes, cfgPrevia, avis
   let cat = buscar("🎰 REFILL DE BANK", 4) || await crear({ name: "🎰 REFILL DE BANK", type: 4 });
   // 2) Tickets
   let catT = buscar("🎫 TICKETS", 4) || await crear({ name: "🎫 TICKETS", type: 4 });
-  let abrir = buscar("🎫・abrir-ticket", 0, catT.id) || await crear({ name: "🎫・abrir-ticket", type: 0, parent_id: catT.id, nsfw: true,
+  let abrir = buscar("🎫・abrir-ticket", 0, catT.id) || await crear({ name: "🎫・abrir-ticket", type: 0, parent_id: catT.id, nsfw: EDAD,
     topic: "Abre aquí tu ticket privado para el refill de bank. Solo +18.", permission_overwrites: lectura([dueno, admin]) });
   let avisosT = buscar("🔔・tickets-nuevos", 0, catT.id) || await crear({ name: "🔔・tickets-nuevos", type: 0, parent_id: catT.id,
     topic: "Solo el equipo: aquí llega un aviso por cada ticket nuevo.", permission_overwrites: privado });
   // 3) Pagos realizados: solo escriben el dueño (👑) y Admin
-  let pagos = buscar("✅・pagos-realizados", 0, cat.id) || await crear({ name: "✅・pagos-realizados", type: 0, parent_id: cat.id, nsfw: true,
+  let pagos = buscar("✅・pagos-realizados", 0, cat.id) || await crear({ name: "✅・pagos-realizados", type: 0, parent_id: cat.id, nsfw: EDAD,
     topic: "Pruebas de los refills que ya depositamos.", permission_overwrites: lectura([dueno, admin]) });
 
   const casinoIds = {};
   for (const c of casinos) {
-    let ch = buscar(c.canal, 0, cat.id) || await crear({ name: c.canal, type: 0, parent_id: cat.id, nsfw: true,
+    let ch = buscar(c.canal, 0, cat.id) || await crear({ name: c.canal, type: 0, parent_id: cat.id, nsfw: EDAD,
       topic: `Cómo recibir tu refill de bank en ${c.nombre}. Solo +18.`, permission_overwrites: lectura([dueno, admin]) });
     casinoIds[c.clave] = ch.id;
+  }
+  // Aplicar el ajuste de edad también a los canales que ya existían
+  for (const ch of [abrir, pagos, ...casinos.map((c) => existentes.find((x) => x.id === casinoIds[c.clave]))]) {
+    if (ch && Boolean(ch.nsfw) !== EDAD) { await api("PATCH", `/channels/${ch.id}`, { nsfw: EDAD }).catch(() => {}); ch.nsfw = EDAD; await espera(400); }
   }
   Object.assign(nuevos, { cat_casinos: cat.id, cat_tickets: catT.id, abrir_ticket: abrir.id, tickets_nuevos: avisosT.id, pagos: pagos.id, casinos: casinoIds });
 

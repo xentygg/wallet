@@ -157,7 +157,7 @@ async function main() {
         const cuerpo = { name: c.nombre, type: tipo, parent_id: cat.id };
         if (!c.voz) cuerpo.topic = c.tema;
         if (c.lectura) cuerpo.permission_overwrites = soloLectura(guildId, staff);
-        if (c.mayores) cuerpo.nsfw = true; // canal con restricción de edad (+18)
+        if (c.mayores && MARCA.discord_bloqueo_edad) cuerpo.nsfw = true; // canal con restricción de edad (+18)
         ch = await api("POST", `/guilds/${guildId}/channels`, cuerpo);
         existentes.push(ch);
         console.log(`  + canal ${c.nombre}`);
@@ -166,6 +166,7 @@ async function main() {
         // Canales que ya existían: dar permiso de escribir a Admin y Moderador, y poner la descripción de la marca
         if (c.lectura) for (const id of staff) await api("PUT", `/channels/${ch.id}/permissions/${id}`, { type: 0, allow: String(SEND), deny: "0" }).catch(() => {});
         if (REBRAND && !c.voz && ch.topic !== c.tema) { await api("PATCH", `/channels/${ch.id}`, { topic: c.tema }).catch(() => {}); await espera(400); }
+        if (c.mayores && Boolean(ch.nsfw) !== Boolean(MARCA.discord_bloqueo_edad)) { await api("PATCH", `/channels/${ch.id}`, { nsfw: Boolean(MARCA.discord_bloqueo_edad) }).catch(() => {}); await espera(400); }
       }
       canales[c.clave] = ch.id;
     }
@@ -225,7 +226,7 @@ async function main() {
   Object.assign(canales, extra);
 
   // 6. Ajustes del servidor: ícono, seguridad media, avisos de nuevos miembros en bienvenida
-  const ajustes = { verification_level: 2, explicit_content_filter: 2, default_message_notifications: 1, system_channel_id: canales.bienvenida };
+  const ajustes = { verification_level: Number(MARCA.discord_verificacion), explicit_content_filter: 2, default_message_notifications: 1, system_channel_id: canales.bienvenida };
   const icono = [path.join(MARCA.dir, "discord-icono.png"), path.join(__dirname, "..", "deploy", "discord-icono.png")].find((f) => fs.existsSync(f));
   const iconoData = icono ? "data:image/png;base64," + fs.readFileSync(icono).toString("base64") : null;
   if (iconoData && (!guild.icon || REBRAND)) ajustes.icon = iconoData;

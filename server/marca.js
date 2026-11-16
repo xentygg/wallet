@@ -16,6 +16,7 @@ const MARCA = {
   nombre: "Don Gato", sitio_nombre: "Don Gato", de: "de Don Gato", firma_discord: "Don Gato 😎",
   sitio_url: "https://quinieladongato.com", rol_dueno: "👑 Don Gato", rol_aficionado: "😺 Aficionado", color: 0xffdd00,
   remate_reglas: "Si no cumples las reglas, Don Gato te saca del estadio. 🟥", remate_bienvenida: "¡Aquí no hay VAR que te salve!",
+  discord_bloqueo_edad: true, discord_verificacion: 2,
   ...datos,
 };
 if (process.env.SITIO_URL) MARCA.sitio_url = process.env.SITIO_URL.replace(/\/$/, "");

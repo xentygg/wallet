@@ -10,5 +10,7 @@
   "rol_dueno_anterior": "👑 Don Gato",
   "color": 13938487,
   "remate_reglas": "Si no cumples las reglas, El Licenciado te saca del juego. 🟥",
-  "remate_bienvenida": "Aquí se juega con cabeza fría. 🎩"
+  "remate_bienvenida": "Aquí se juega con cabeza fría. 🎩",
+  "discord_bloqueo_edad": false,
+  "discord_verificacion": 0
 }
