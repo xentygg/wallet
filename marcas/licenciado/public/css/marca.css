@@ -1,0 +1,15 @@
+/* La Quiniela del Lic: negro elegante con acento dorado */
+:root {
+  --bg: #08080a;
+  --card: #141417;
+  --card2: #1d1d22;
+  --line: #2c2c33;
+  --amarillo: #d4af37;   /* dorado */
+  --rojo: #7a1a24;       /* vino */
+  --verde: #1f9d5a;
+}
+.hero img { border-radius: 26px; border: 2px solid var(--amarillo); box-shadow: 0 10px 40px rgba(212,175,55,.18); }
+.logo img { border-color: var(--amarillo); }
+.letrero { background: var(--amarillo); color: #000; }
+.premio { background: linear-gradient(135deg, #e6c65c, #b8912a); }
+.destacada { background: linear-gradient(135deg, #e6c65c, #b8912a); }

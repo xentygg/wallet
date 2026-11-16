@@ -3,12 +3,13 @@
 // - Después el servidor publica solo la quiniela del día y los ganadores.
 // Sin DISCORD_BOT_TOKEN o sin configuración, no hace nada.
 const fs = require("node:fs");
+const MARCA = require("./marca");
 
 const API = (process.env.DISCORD_API_URL || "https://discord.com/api/v10").replace(/\/$/, "");
 const TOKEN = process.env.DISCORD_BOT_TOKEN || "";
 const CONFIG_PATH = process.env.DISCORD_CONFIG_PATH || "/var/lib/dongato/discord.json";
-const SITIO = (process.env.SITIO_URL || "https://quinieladongato.com").replace(/\/$/, "");
-const AMARILLO = 0xffdd00;
+const SITIO = MARCA.sitio_url;
+const AMARILLO = MARCA.color;
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -16,7 +17,7 @@ async function api(metodo, ruta, cuerpo, intentos = 4) {
   for (let i = 0; i < intentos; i++) {
     const r = await fetch(API + ruta, {
       method: metodo,
-      headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json", "User-Agent": "DonGatoBot (quinieladongato.com, 1.0)" },
+      headers: { Authorization: `Bot ${TOKEN}`, "Content-Type": "application/json", "User-Agent": "QuinielaBot (https://github.com, 1.0)" },
       body: cuerpo ? JSON.stringify(cuerpo) : undefined,
       signal: AbortSignal.timeout(20000),
     });
@@ -72,7 +73,7 @@ function mensajeQuiniela(q, partidos) {
         { name: "⏰ Cierra", value: `<t:${cierre}:t> (<t:${cierre}:R>)`, inline: true },
         { name: "🎯 Juega gratis", value: `${SITIO}/quiniela` },
       ],
-      footer: { text: "Una quiniela por persona al día · Don Gato 😎" },
+      footer: { text: `Una quiniela por persona al día · ${MARCA.firma_discord}` },
     }],
   };
 }
@@ -92,7 +93,7 @@ function mensajeResultados(r, ganador) {
       url: `${SITIO}/quiniela`,
       color: ganador ? AMARILLO : 0x2e2e2e,
       description: `${texto}\n\n**Resultados del ${fechaLarga(r.q.fecha)}:**\n${lineas.join("\n")}`,
-      footer: { text: "Juega la de mañana en quinieladongato.com" },
+      footer: { text: `Juega la de mañana en ${SITIO.replace(/^https?:\/\//, "")}` },
     }],
   };
 }

@@ -1,7 +1,7 @@
 // Trivia diaria de Don Gato: 5 preguntas iguales para todos cada día (como Wordle).
 // Las preguntas y las frases vienen del proyecto de TikTok (tools/importar_trivias.py).
 (function () {
-  const C = window.CONFIG, F = window.FRASES;
+  const C = window.CONFIG, F = JSON.parse(JSON.stringify(window.FRASES).split("de Don Gato").join(window.CONFIG.de || "de Don Gato").split("Don Gato").join(window.CONFIG.firma || "Don Gato"));
   const N = 5;
   const INICIO = Date.UTC(2026, 10, 1); // 1 nov 2026 = trivia #1
   const sesion = MC.montar("trivia");

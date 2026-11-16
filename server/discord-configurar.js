@@ -1,10 +1,15 @@
-// Configura el servidor de Discord de Don Gato usando el bot.
+// Configura el servidor de Discord con la marca de esta instalación (MARCA=dongato, licenciado…) usando el bot.
 // Uso (en el servidor, como root):
-//   set -a; . /etc/dongato.env; set +a; node server/discord-configurar.js [ID_DEL_SERVIDOR]
+//   set -a; . /etc/dongato.env; set +a; node server/discord-configurar.js [--rebrand] [ID_DEL_SERVIDOR]
 // Se puede correr varias veces: solo crea lo que falte y no borra nada.
+// --rebrand: además cambia el nombre e ícono del servidor, el nombre y foto del bot, los nombres de los roles,
+//            las descripciones de los canales y los mensajes fijos a la marca actual.
 const fs = require("node:fs");
 const path = require("node:path");
 const { api, espera, CONFIG_PATH, SITIO } = require("./discord");
+const MARCA = require("./marca");
+const REBRAND = process.argv.includes("--rebrand");
+const ARGS = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 
 const VIEW = 1n << 10n, SEND = 1n << 11n, REACT = 1n << 6n, HISTORY = 1n << 16n;
 const ADMINISTRADOR = 1n << 3n, KICK = 1n << 1n, BAN = 1n << 2n, CANALES = 1n << 4n, AUDITORIA = 1n << 7n, MENSAJES = 1n << 13n,
@@ -12,12 +17,12 @@ const ADMINISTRADOR = 1n << 3n, KICK = 1n << 1n, BAN = 1n << 2n, CANALES = 1n <<
 
 // Roles, de arriba hacia abajo. "auto": se le da a todos al entrar (lo hace la página con el bot).
 const ROLES = [
-  { clave: "dongato", nombre: "👑 Don Gato", color: 0xffdd00, permisos: ADMINISTRADOR },
+  { clave: "dongato", nombre: MARCA.rol_dueno, anterior: MARCA.rol_dueno_anterior, color: MARCA.color, permisos: ADMINISTRADOR },
   { clave: "admin", nombre: "🛡️ Admin", color: 0xe4242c, permisos: KICK | BAN | CANALES | AUDITORIA | MENSAJES | MENCIONAR_TODOS | APODOS | ROLES_P | SILENCIAR },
   { clave: "moderador", nombre: "🔨 Moderador", color: 0x16b250, permisos: KICK | MENSAJES | APODOS | SILENCIAR },
   { clave: "ganador", nombre: "🏆 Ganador", color: 0xff9f43, permisos: 0n },
   { clave: "vip", nombre: "💎 VIP", color: 0xa855f7, permisos: 0n },
-  { clave: "aficionado", nombre: "😺 Aficionado", color: 0xdcdde1, permisos: 0n, auto: true },
+  { clave: "aficionado", nombre: MARCA.rol_aficionado, anterior: MARCA.rol_aficionado_anterior, color: 0xdcdde1, permisos: 0n, auto: true },
 ];
 const THREADS = (1n << 35n) | (1n << 36n) | (1n << 38n);
 const soloLectura = (everyoneId, staff) => [
@@ -28,9 +33,9 @@ const soloLectura = (everyoneId, staff) => [
 // Estructura del servidor. "clave" = nombre interno para que la página publique ahí.
 const ESTRUCTURA = [
   { categoria: "📢 INFORMACIÓN", canales: [
-    { clave: "bienvenida", nombre: "👋・bienvenida", tema: "Empieza aquí: qué es la comunidad de Don Gato y cómo jugar.", lectura: true },
+    { clave: "bienvenida", nombre: "👋・bienvenida", tema: `Empieza aquí: qué es la comunidad ${MARCA.de} y cómo jugar.`, lectura: true },
     { clave: "reglas", nombre: "📜・reglas", tema: "Las reglas de la casa. Léelas antes de participar.", lectura: true },
-    { clave: "anuncios", nombre: "📣・anuncios", tema: "Recompensas, premios y novedades de Don Gato.", lectura: true },
+    { clave: "anuncios", nombre: "📣・anuncios", tema: `Recompensas, premios y novedades ${MARCA.de}.`, lectura: true },
   ] },
   { categoria: "⚽ QUINIELA", canales: [
     { clave: "quiniela", nombre: "🎯・quiniela-del-día", tema: `La quiniela de cada día. Juega gratis en ${SITIO}/quiniela`, lectura: true },
@@ -39,7 +44,7 @@ const ESTRUCTURA = [
   ] },
   { categoria: "🎉 DINÁMICAS", canales: [
     { clave: "dinamicas", nombre: "🎉・dinámicas", tema: "Dinámicas y retos con premio, exclusivos del Discord. Solo mayores de 18.", mayores: true },
-    { clave: "trivia", nombre: "🧠・trivia", tema: "Preguntas y retos de Don Gato. ¿Sabes o nomás opinas?" },
+    { clave: "trivia", nombre: "🧠・trivia", tema: `Preguntas y retos ${MARCA.de}. ¿Sabes o nomás opinas?` },
   ] },
   { categoria: "💬 COMUNIDAD", canales: [
     { clave: "platica", nombre: "💬・platica-libre", tema: "De todo un poco. Respeto ante todo." },
@@ -49,25 +54,25 @@ const ESTRUCTURA = [
   ] },
 ];
 
-const REGLAS = `**Reglas de la comunidad de Don Gato 😎**
+const REGLAS = `**Reglas de la comunidad ${MARCA.de}**
 
 **1.** Respeto ante todo. Se vale el pique, no los insultos.
 **2.** Nada de spam, publicidad ni enlaces sospechosos.
 **3.** Una cuenta por persona. Las cuentas duplicadas pierden sus premios.
 **4.** Las dinámicas con premio son solo para mayores de 18 años.
-**5.** Los premios se entregan solo por los medios oficiales de Don Gato. Nadie del equipo te va a pedir contraseñas ni pagos.
+**5.** Los premios se entregan solo por los medios oficiales ${MARCA.de}. Nadie del equipo te va a pedir contraseñas ni pagos.
 **6.** Las bases de la quiniela están en ${SITIO}/bases
 
-Si no cumples las reglas, Don Gato te saca del estadio. 🟥`;
+${MARCA.remate_reglas}`;
 
-const bienvenida = (c) => `**¡Bienvenido a la comunidad de Don Gato! 😎⚽**
+const bienvenida = (c) => `**¡Bienvenido a la comunidad ${MARCA.de}! ⚽**
 Aquí se juega la quiniela diaria, se viven los partidos y se presume quién sí sabe.
 
 🎯 **Juega gratis:** ${SITIO} — atínale a los 5 partidos y gana $300.
 🎁 **Recompensas exclusivas, premios más grandes y dinámicas** en <#${c.anuncios}> y <#${c.dinamicas}>.
 ⚽ La quiniela de cada día aparece en <#${c.quiniela}> y los ganadores en <#${c.ganadores}>.
 
-Lee <#${c.reglas}> y preséntate en <#${c.platica}>. ¡Aquí no hay VAR que te salve!`;
+Lee <#${c.reglas}> y preséntate en <#${c.platica}>. ${MARCA.remate_bienvenida}`;
 
 const ANUNCIOS = `**📣 Aquí se anuncia todo lo bueno**
 Recompensas exclusivas para los miembros, premios más grandes que en la página y dinámicas especiales. Activa las notificaciones de este canal para no perderte nada. 🔔`;
@@ -80,7 +85,7 @@ async function main() {
 
   // 1. ¿En qué servidor está el bot?
   const guilds = await api("GET", "/users/@me/guilds");
-  let guildId = process.argv[2];
+  let guildId = ARGS[0];
   if (!guildId) {
     if (guilds.length === 0) throw new Error("El bot no está en ningún servidor. Invítalo primero con el enlace del portal de desarrolladores.");
     if (guilds.length > 1) throw new Error("El bot está en varios servidores: " + guilds.map((g) => `${g.name} (${g.id})`).join(", ") + ". Vuelve a correr el comando agregando el número del servidor al final.");
@@ -89,17 +94,28 @@ async function main() {
   const guild = guilds.find((g) => g.id === guildId) || (await api("GET", `/guilds/${guildId}`));
   console.log(`Configurando el servidor "${guild.name}"…`);
 
-  // 2. Roles con colores (solo crea los que falten; si existen, les pone el color)
+  let cfgPrevia = {};
+  try { cfgPrevia = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8")); } catch {}
+  if (cfgPrevia.guild_id && cfgPrevia.guild_id !== guildId) cfgPrevia = {};
+
+  // 2. Roles con colores (solo crea los que falten; si existen, les pone el nombre y color de la marca)
   let rolesExistentes = await api("GET", `/guilds/${guildId}/roles`);
   const roles = {};
   for (const r of ROLES) {
-    let rol = rolesExistentes.find((x) => x.name === r.nombre);
+    let rol = rolesExistentes.find((x) => cfgPrevia.roles && x.id === cfgPrevia.roles[r.clave])
+      || rolesExistentes.find((x) => x.name === r.nombre)
+      || (r.anterior && rolesExistentes.find((x) => x.name === r.anterior));
+    if (rol && (rol.name !== r.nombre || rol.color !== r.color)) {
+      try {
+        await api("PATCH", `/guilds/${guildId}/roles/${rol.id}`, { name: r.nombre, color: r.color, hoist: true });
+        if (rol.name !== r.nombre) console.log(`  ✎ rol ${rol.name} → ${r.nombre}`);
+      } catch (e) { console.log(`  ! No pude cambiar el rol ${rol.name}: ${e.message}`); }
+      await espera(400);
+    }
     if (!rol) {
       rol = await api("POST", `/guilds/${guildId}/roles`, { name: r.nombre, color: r.color, hoist: true, mentionable: r.clave !== "aficionado", permissions: String(r.permisos) });
       console.log(`  + rol ${r.nombre}`);
       await espera(400);
-    } else if (rol.color !== r.color) {
-      await api("PATCH", `/guilds/${guildId}/roles/${rol.id}`, { color: r.color, hoist: true }).catch(() => {});
     }
     roles[r.clave] = rol.id;
   }
@@ -115,7 +131,7 @@ async function main() {
     await api("PATCH", `/guilds/${guildId}/roles`, nuestros.map((id, i) => ({ id, position: topeBot - 1 - i })));
     console.log("  ✓ orden de los roles");
   } catch (e) {
-    avisos.push('Para que los roles queden en orden y el bot pueda darlos: en Discord ve a Ajustes del servidor → Roles y arrastra el rol del bot ("Don Gato" con ícono de bot) hasta arriba de todo. Luego vuelve a correr este comando.');
+    avisos.push('Para que los roles queden en orden y el bot pueda darlos: en Discord ve a Ajustes del servidor → Roles y arrastra el rol del bot (el que tiene ícono de bot) hasta arriba de todo. Luego vuelve a correr este comando.');
   }
   const staff = [roles.admin, roles.moderador];
 
@@ -145,9 +161,10 @@ async function main() {
         existentes.push(ch);
         console.log(`  + canal ${c.nombre}`);
         await espera(400);
-      } else if (c.lectura) {
-        // Canales que ya existían: dar permiso de escribir a Admin y Moderador
-        for (const id of staff) await api("PUT", `/channels/${ch.id}/permissions/${id}`, { type: 0, allow: String(SEND), deny: "0" }).catch(() => {});
+      } else {
+        // Canales que ya existían: dar permiso de escribir a Admin y Moderador, y poner la descripción de la marca
+        if (c.lectura) for (const id of staff) await api("PUT", `/channels/${ch.id}/permissions/${id}`, { type: 0, allow: String(SEND), deny: "0" }).catch(() => {});
+        if (REBRAND && !c.voz && ch.topic !== c.tema) { await api("PATCH", `/channels/${ch.id}`, { topic: c.tema }).catch(() => {}); await espera(400); }
       }
       canales[c.clave] = ch.id;
     }
@@ -157,11 +174,11 @@ async function main() {
   try {
     const info = await api("GET", `/guilds/${guildId}`);
     await api("PUT", `/guilds/${guildId}/members/${info.owner_id}/roles/${roles.dongato}`);
-    console.log("  ✓ te di el rol 👑 Don Gato");
-  } catch (e) { avisos.push("No pude darte el rol 👑 Don Gato (" + e.message + "). Dátelo tú en Ajustes del servidor → Roles."); }
+    console.log(`  ✓ te di el rol ${MARCA.rol_dueno}`);
+  } catch (e) { avisos.push(`No pude darte el rol ${MARCA.rol_dueno} (${e.message}). Dátelo tú en Ajustes del servidor → Roles.`); }
   let miembros = null;
   try { miembros = await api("GET", `/guilds/${guildId}/members?limit=1000`); }
-  catch (e) { avisos.push('Para dar el rol 😺 Aficionado automáticamente: en discord.com/developers → tu aplicación → Bot, activa "Server Members Intent" y guarda. Luego vuelve a correr este comando.'); }
+  catch (e) { avisos.push(`Para dar el rol ${MARCA.rol_aficionado} automáticamente: en discord.com/developers → tu aplicación → Bot, activa "Server Members Intent" y guarda. Luego vuelve a correr este comando.`); }
   if (miembros) {
     let n = 0, fallos = 0;
     for (const m of miembros) {
@@ -169,14 +186,24 @@ async function main() {
       try { await api("PUT", `/guilds/${guildId}/members/${m.user.id}/roles/${roles.aficionado}`); n++; } catch { fallos++; }
       await espera(300);
     }
-    console.log(`  ✓ rol 😺 Aficionado para ${n} miembro(s) que ya estaban`);
-    if (fallos) avisos.push(`No pude dar 😺 Aficionado a ${fallos} miembro(s): sube el rol del bot hasta arriba en Ajustes del servidor → Roles y vuelve a correr este comando.`);
+    console.log(`  ✓ rol ${MARCA.rol_aficionado} para ${n} miembro(s) que ya estaban`);
+    if (fallos) avisos.push(`No pude dar ${MARCA.rol_aficionado} a ${fallos} miembro(s): sube el rol del bot hasta arriba en Ajustes del servidor → Roles y vuelve a correr este comando.`);
   }
 
-  // 5. Mensajes fijos (solo si el canal está vacío)
+  // 5. Mensajes fijos: si el canal está vacío se publican; con --rebrand se editan los que puso el bot
+  const yoBot = await api("GET", "/users/@me");
   const publicarSiVacio = async (clave, contenido) => {
-    const msgs = await api("GET", `/channels/${canales[clave]}/messages?limit=1`);
-    if (msgs.length) return;
+    const msgs = await api("GET", `/channels/${canales[clave]}/messages?limit=50`);
+    if (msgs.length) {
+      if (!REBRAND) return;
+      const mio = msgs.slice().reverse().find((m) => m.author && m.author.id === yoBot.id && !(m.embeds && m.embeds.length));
+      if (mio && mio.content !== contenido) {
+        await api("PATCH", `/channels/${canales[clave]}/messages/${mio.id}`, { content: contenido, allowed_mentions: { parse: [] } });
+        console.log(`  ✎ mensaje de ${clave} actualizado`);
+        await espera(400);
+      }
+      return;
+    }
     const m = await api("POST", `/channels/${canales[clave]}/messages`, { content: contenido, allowed_mentions: { parse: [] } });
     await api("PUT", `/channels/${canales[clave]}/pins/${m.id}`).catch(() => {});
     console.log(`  + mensaje en ${clave}`);
@@ -189,15 +216,19 @@ async function main() {
 
   // 6. Ajustes del servidor: ícono, seguridad media, avisos de nuevos miembros en bienvenida
   const ajustes = { verification_level: 2, explicit_content_filter: 2, default_message_notifications: 1, system_channel_id: canales.bienvenida };
-  const icono = path.join(__dirname, "..", "deploy", "discord-icono.png");
-  if (!guild.icon && fs.existsSync(icono)) ajustes.icon = "data:image/png;base64," + fs.readFileSync(icono).toString("base64");
-  try { await api("PATCH", `/guilds/${guildId}`, ajustes); console.log("  ✓ ícono y seguridad del servidor"); }
-  catch (e) { console.log("  ! No pude cambiar el ícono o la seguridad: " + e.message); }
+  const icono = [path.join(MARCA.dir, "discord-icono.png"), path.join(__dirname, "..", "deploy", "discord-icono.png")].find((f) => fs.existsSync(f));
+  const iconoData = icono ? "data:image/png;base64," + fs.readFileSync(icono).toString("base64") : null;
+  if (iconoData && (!guild.icon || REBRAND)) ajustes.icon = iconoData;
+  if (REBRAND) ajustes.name = MARCA.nombre;
+  try { await api("PATCH", `/guilds/${guildId}`, ajustes); console.log(`  ✓ ${REBRAND ? `servidor renombrado a "${MARCA.nombre}", ` : ""}ícono y seguridad del servidor`); }
+  catch (e) { console.log("  ! No pude cambiar el nombre, ícono o seguridad: " + e.message); }
+  if (REBRAND) {   // nombre y foto del propio bot (Discord limita los cambios de nombre a 2 por hora)
+    try { await api("PATCH", "/users/@me", { username: MARCA.nombre, ...(iconoData ? { avatar: iconoData } : {}) }); console.log(`  ✓ el bot ahora se llama "${MARCA.nombre}"`); }
+    catch (e) { avisos.push(`No pude cambiar el nombre o la foto del bot (${e.message}). Cámbialos en discord.com/developers → tu aplicación → Bot.`); }
+  }
 
-  // 7. Enlace de invitación permanente
-  let cfgPrevia = {};
-  try { cfgPrevia = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8")); } catch {}
-  let invitacion = cfgPrevia.guild_id === guildId ? cfgPrevia.invitacion : null;
+  // 7. Enlace de invitación permanente (se conserva el mismo)
+  let invitacion = cfgPrevia.invitacion || null;
   if (!invitacion) {
     const inv = await api("POST", `/channels/${canales.bienvenida}/invites`, { max_age: 0, max_uses: 0, unique: false });
     invitacion = `https://discord.gg/${inv.code}`;

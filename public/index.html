@@ -4,9 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{marca} — Quiniela diaria y trivias deportivas</title>
-  <meta name="description" content="Quiniela diaria gratis: atínale a los 5 partidos y gánate $300. Trivia deportiva y datos curiosos con Don Gato.">
+  <meta name="description" content="Quiniela diaria gratis: atínale a los 5 partidos y gánate $300. Trivia deportiva y datos curiosos">
   <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/marca.css">
   <link rel="icon" href="/img/perfil.webp">
 </head>
 <body>
@@ -16,8 +17,8 @@
     <div class="hero hero-compacto">
       <div id="gato-hero"></div>
       <div>
-        <h1>¿Sabes de deportes<br><span class="amarillo">o nomás opinas?</span></h1>
-        <span class="letrero">Aquí no hay VAR que te salve</span>
+        <h1 id="hero-h1"></h1>
+        <span class="letrero" id="hero-letrero"></span>
         <p id="eslogan"></p>
       </div>
     </div>
@@ -82,7 +83,7 @@
 
     <section class="card">
       <h2 class="titulo-sec">💬 ¿Dudas o premios?</h2>
-      <p>Escríbele directo a Don Gato por WhatsApp.</p>
+      <p id="wa-texto"></p>
       <a class="btn btn-wa" id="link-canal" target="_blank" rel="noopener">Escribir por WhatsApp</a>
     </section>
   </main>
@@ -97,6 +98,9 @@
     const pesos = (n) => "$" + Number(n).toLocaleString("es-MX");
     const sesion = MC.montar("inicio");
     $("gato-hero").innerHTML = MC.gato;
+    $("hero-h1").innerHTML = `${esc(C.heroTitulo)}<br><span class="amarillo">${esc(C.heroResalte)}</span>`;
+    $("hero-letrero").textContent = C.heroLetrero;
+    $("wa-texto").textContent = `Escríbele directo ${C.a} por WhatsApp.`;
     $("eslogan").textContent = C.eslogan;
 
     // ---------- Quiniela de hoy, números y muro de ganadores ----------
@@ -145,14 +149,14 @@
         : `<p>Todavía no hay ganadores. <b>El primero puedes ser tú.</b></p><div class="fila" style="justify-content:flex-start"><a class="btn btn-pri" href="/quiniela">Jugar la quiniela</a></div>`;
     }).catch(() => { $("hoy").innerHTML = `<h2 class="titulo-sec">⚽ La quiniela de hoy</h2><p><a href="/quiniela">Ver la quiniela</a></p>`; $("muro").innerHTML = ""; });
 
-    // ---------- Dato curioso del día (de los videos de Don Gato) ----------
+    // ---------- Dato curioso del día ----------
     if (window.DATOS && DATOS.length) {
       const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date());
       const n = Math.floor(Date.parse(hoy + "T00:00:00Z") / 86400000);
       const dt = DATOS[(n * 37) % DATOS.length];
       $("dato").innerHTML = `
         <div class="gato-dice" style="margin:0;border:0;background:transparent;padding:0">${MC.avatar}
-          <div><span class="letrero" style="font-size:.8rem">Dato curioso de Don Gato</span>
+          <div><span class="letrero" style="font-size:.8rem">Dato curioso ${C.de}</span>
           ${dt.pregunta ? `<p style="margin:10px 0 4px;color:var(--txt);font-weight:700">${esc(dt.pregunta)}</p>
             <details><summary>Ver respuesta</summary><p style="margin:6px 0 0"><b class="amarillo">${esc(dt.respuesta)}.</b> ${esc(dt.texto)}</p></details>`
           : `<p style="margin:10px 0 0;color:var(--txt);font-weight:700">¿Sabías que… ${esc(dt.texto.charAt(0).toLowerCase() + dt.texto.slice(1))}?</p>`}
@@ -161,10 +165,10 @@
     }
 
     // ---------- Comunidad, registro e invitaciones ----------
-    $("link-canal").href = "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent("Hola Don Gato 😎, vengo de la página.");
+    $("link-canal").href = "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent(`Hola ${C.saludo}, vengo de la página.`);
     sesion.then(() => {
       $("discord-portada").innerHTML = MC.discord("grande");
-      $("discord-final").innerHTML = MC.discord("corto", "¿Ya estás en el Discord de Don Gato?");
+      $("discord-final").innerHTML = MC.discord("corto", `¿Ya estás en el Discord ${C.de}?`);
     });
     if (C.registro.activo) {
       $("registro").hidden = false;

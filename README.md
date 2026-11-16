@@ -1,3 +1,13 @@
+# Quinielas: Don Gato 😎 y La Quiniela del Lic 🎩
+
+El mismo sistema sirve varias **marcas**. Cada una vive en `marcas/<id>/` (`marca.json` con textos del servidor y Discord; `public/` con logo, colores y `config.js`, que reemplazan a los de `public/`). La marca se elige con la variable `MARCA` (por defecto `dongato`). En un mismo servidor puede haber varias páginas, cada una con su dominio, base de datos, contraseña y respaldo.
+
+- Don Gato: `curl -fsSL https://raw.githubusercontent.com/xentygg/wallet/claude/crear-algo-ganar-dinero-njrn13/deploy/instalar.sh | bash`
+- La Quiniela del Lic: `curl -fsSL https://raw.githubusercontent.com/xentygg/wallet/claude/crear-algo-ganar-dinero-njrn13/deploy/instalar.sh | INSTANCIA=licenciado DOMINIO=sudominio.com bash`
+- Cambiar el Discord a otra marca: `node server/discord-configurar.js --rebrand` con el `.env` de esa instancia.
+
+---
+
 # Don Gato 😎 — quinieladongato.com
 
 Página de comunidad deportiva de Don Gato (TikTok @mrcatstudio):

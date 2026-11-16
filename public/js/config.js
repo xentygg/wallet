@@ -2,7 +2,14 @@
 //  CONFIGURACIÓN DE TU MARCA — edita solo este archivo
 // =====================================================================
 window.CONFIG = {
-  marca: "Don Gato",
+  marca: "Don Gato",               // nombre de la página
+  firma: "Don Gato",               // quién habla ("Soy …")
+  de: "de Don Gato",               // "la comunidad de Don Gato", "dato curioso de Don Gato"
+  a: "a Don Gato",                 // "escríbele a Don Gato"
+  saludo: "Don Gato 😎",           // "Hola Don Gato 😎"
+  heroTitulo: "¿Sabes de deportes",
+  heroResalte: "o nomás opinas?",
+  heroLetrero: "Aquí no hay VAR que te salve",
   responsable: "El equipo de Don Gato",   // nombre de la persona responsable de los datos (aviso de privacidad)
   eslogan: "Trivias, quinielas y datos curiosos de futbol, NFL y béisbol. Aquí se ve quién sí sabe.",
 

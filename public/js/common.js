@@ -80,6 +80,7 @@
         ? `<a href="${C.grupoWhatsApp}" target="_blank" rel="noopener">Grupo de WhatsApp</a>`
         : `<a href="https://wa.me/${C.whatsappOrganizador}" target="_blank" rel="noopener">WhatsApp</a>`}
         · <a href="/bases">Bases de la quiniela</a> · <a href="/privacidad">Aviso de privacidad</a></p>
+      ${C.twitter ? `<p><a href="${C.twitter}" target="_blank" rel="noopener">Síguelo en X (Twitter)</a></p>` : ""}
       <p class="mini">© ${new Date().getFullYear()} ${C.marca}. Trivias y quinielas gratuitas para la comunidad.</p>
     </footer>`;
   }
@@ -114,12 +115,12 @@
     if (!C.discord) return "";
     if (tipo === "corto") return `
       <div class="discord-corto">
-        <div><b>${texto || "Sigue los partidos en vivo con la comunidad"}</b><span>Recompensas exclusivas, premios más grandes y dinámicas: solo en el Discord de Don Gato.</span></div>
+        <div><b>${texto || "Sigue los partidos en vivo con la comunidad"}</b><span>Recompensas exclusivas, premios más grandes y dinámicas: solo en el Discord ${C.de}.</span></div>
         <a class="btn btn-discord" href="${C.discord}" target="_blank" rel="noopener">Entrar al Discord</a>
       </div>`;
     return `
       <section class="discord-grande">
-        <span class="letrero">La comunidad de Don Gato</span>
+        <span class="letrero">La comunidad ${C.de}</span>
         <h2>Únete al Discord 🎮</h2>
         <p>Aquí es donde se arma la buena. Entra gratis y llévate:</p>
         <ul>

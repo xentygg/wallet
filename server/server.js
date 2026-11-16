@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const db = require("./db");
+const MARCA = require("./marca");
 
 const PORT = Number(process.env.PORT || 3000);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
@@ -285,7 +286,7 @@ ruta("GET", "/api/perfil", async (req, res) => {
     { icono: "⚽", nombre: "Debut", desc: "Juega tu primera quiniela", ok: hist.length >= 1 },
     { icono: "🔥", nombre: "En racha", desc: "Juega 3 días seguidos", ok: racha.mejor >= 3 },
     { icono: "📅", nombre: "Semana completa", desc: "Juega 7 días seguidos", ok: racha.mejor >= 7 },
-    { icono: "🗓️", nombre: "Fiel a Don Gato", desc: "Juega 30 días seguidos", ok: racha.mejor >= 30 },
+    { icono: "🗓️", nombre: "Fiel " + MARCA.de.replace(/^del /, "al ").replace(/^de /, "a "), desc: "Juega 30 días seguidos", ok: racha.mejor >= 30 },
     { icono: "😬", nombre: "A una del premio", desc: "Atínale a todos menos uno", ok: casi || perfectas > 0 },
     { icono: "🎯", nombre: "Perfecta", desc: "Atínale a todos los partidos", ok: perfectas > 0 },
     { icono: "🏆", nombre: "Campeón", desc: "Gana un premio", ok: premios > 0 },
@@ -515,8 +516,11 @@ const TIPOS = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=
 function servirArchivo(req, res, ruta) {
   let rel = decodeURIComponent(ruta.split("?")[0]);
   if (rel.endsWith("/")) rel += "index.html";
-  const archivo = path.normalize(path.join(PUBLIC_DIR, rel));
+  let archivo = path.normalize(path.join(PUBLIC_DIR, rel));
   if (!archivo.startsWith(PUBLIC_DIR + path.sep)) { res.writeHead(403); return res.end(); }
+  // Los archivos de la marca (marcas/<id>/public) reemplazan a los generales
+  const deMarca = path.normalize(path.join(MARCA.publico, rel));
+  if (deMarca.startsWith(MARCA.publico + path.sep) && (fs.existsSync(deMarca) || fs.existsSync(deMarca + ".html"))) archivo = deMarca;
   fs.stat(archivo, (err, st) => {
     let final = archivo;
     if (err || !st.isFile()) {
@@ -659,7 +663,7 @@ ruta("GET", "/api/discord", async (req, res) => {
 
 const automatico = require("./automatico");
 servidor.listen(PORT, "127.0.0.1", () => {
-  console.log(`Don Gato escuchando en http://127.0.0.1:${PORT}`);
+  console.log(`${MARCA.sitio_nombre} (marca ${MARCA.id}) escuchando en http://127.0.0.1:${PORT}`);
   automatico.iniciar({ calificar, reglasDe, ganadoresDe, fechaMX, sumarDias, avisarQuinielaDiscord, avisarResultadosDiscord });
   require("./discord-gateway").iniciar(anotarLog);
 });
