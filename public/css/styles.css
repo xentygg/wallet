@@ -225,3 +225,4 @@ nav a.nav-discord:hover { background: var(--discord); filter: brightness(1.1); c
 .discord-corto { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: rgba(88,101,242,.16); border: 1px solid var(--discord); border-radius: var(--radio); padding: 14px 16px; margin: 16px 0; }
 .discord-corto b { display: block; }
 .discord-corto span { color: var(--muted); font-size: .9rem; }
+.solo-discord { font-weight: 700; color: #fff !important; margin: 0 0 14px !important; }

@@ -139,13 +139,11 @@
       }
 
       const tira = [`<div><b>${pesos(q ? q.premio : 300)}</b><span>premio diario</span></div>`, `<div><b>Gratis</b><span>para jugar</span></div>`];
-      if (d.pagado > 0) tira.push(`<div><b>${pesos(d.pagado)}</b><span>pagados en premios</span></div>`);
-      else if (d.ganadores > 0) tira.push(`<div><b>${d.ganadores}</b><span>ganadores</span></div>`);
+      if (C.discord) tira.push(`<div><b>Discord</b><span>premios más grandes</span></div>`);
       $("tira").innerHTML = tira.join(""); $("tira").hidden = false;
 
       $("muro").innerHTML = d.muro.length
-        ? `${d.pagado > 0 ? `<p>Ya entregamos <b class="amarillo">${pesos(d.pagado)}</b> en premios a ${d.ganadores} ganador${d.ganadores === 1 ? "" : "es"}.</p>` : ""}
-           ${d.muro.map((g) => `<div class="ganador-fila">
+        ? `${d.muro.map((g) => `<div class="ganador-fila">
              <span>🏆 <b>${esc(g.apodo)}</b></span>
              <span style="color:var(--muted)">${esc(new Date(g.fecha + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" }))}</span>
              <span><b class="amarillo">${pesos(g.monto)}</b> ${g.pagado ? '<span class="badge verde">Pagado</span>' : '<span class="badge gris">En proceso</span>'}</span></div>`).join("")}`

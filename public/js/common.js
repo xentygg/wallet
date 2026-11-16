@@ -107,20 +107,22 @@
     if (!C.discord) return "";
     if (tipo === "corto") return `
       <div class="discord-corto">
-        <div><b>${texto || "Sigue los partidos en vivo con la comunidad"}</b><span>Resultados, ganadores y retos en el Discord de Don Gato.</span></div>
+        <div><b>${texto || "Sigue los partidos en vivo con la comunidad"}</b><span>Refills de bank, premios más grandes y dinámicas: solo en el Discord de Don Gato.</span></div>
         <a class="btn btn-discord" href="${C.discord}" target="_blank" rel="noopener">Entrar al Discord</a>
       </div>`;
     return `
       <section class="discord-grande">
         <span class="letrero">La comunidad de Don Gato</span>
         <h2>Únete al Discord 🎮</h2>
-        <p>Aquí es donde se arma la buena. Entra gratis y no te pierdas nada:</p>
+        <p>Aquí es donde se arma la buena. Entra gratis y llévate:</p>
         <ul>
-          <li>⚽ <b>Partidos en vivo</b> con la comunidad, y quién va ganando la quiniela</li>
-          <li>🏆 <b>Ganadores del día</b> y comprobantes de pago</li>
-          <li>🧠 <b>Retos y trivias exclusivas</b> de Don Gato</li>
+          <li>💰 <b>Refills de bank</b> para todos los que se unan</li>
+          <li>🏆 <b>Premios más grandes</b> que en la página</li>
+          <li>🎉 <b>Dinámicas</b> y retos con premio</li>
+          <li>⚽ <b>Partidos en vivo</b> con la comunidad y quién va ganando la quiniela</li>
           <li>💬 <b>Platica, presume y discute</b> con gente que sí sabe de futbol</li>
         </ul>
+        <p class="solo-discord">Todo esto es <b>exclusivo</b> del servidor de Discord.</p>
         <a class="btn btn-discord btn-grande" href="${C.discord}" target="_blank" rel="noopener">Entrar al Discord gratis</a>
       </section>`;
   }
