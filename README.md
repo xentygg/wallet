@@ -1,50 +1,59 @@
-# Don Gato 😎
+# Don Gato 😎 — quinieladongato.com
 
-Página de comunidad deportiva para acompañar la cuenta de TikTok de Don Gato. Usa la misma mascota, colores (negro y amarillo), letra (TikTok Sans), frases y preguntas que los videos del proyecto `claudetrivia`:
+Página de comunidad deportiva de Don Gato (TikTok @mrcatstudio):
 
-- **Trivia diaria** (`trivia.html`): 5 preguntas al día, iguales para todos. El resultado se comparte por WhatsApp con cuadritos 🟩🟥 y un enlace personal.
-- **Quiniela gratis** (`quiniela.html`): el aficionado elige L/E/V y su quiniela llega a tu WhatsApp. Incluye tabla general.
-- **Inicio** (`index.html`): enlaces a TikTok y al canal de WhatsApp, sección de registro a la plataforma de afiliado (con aviso +18) y enlace personal para invitar amigos.
+- **Quiniela diaria con premio** (`/quiniela`): 5 partidos al día. Quien le atine a todos gana el premio del día (normalmente $300). Si hay varios ganadores, se reparte; si no hay, no se acumula. Una quiniela por persona al día.
+- **Cuentas y perfil** (`/entrar`, `/perfil`): registro con celular y contraseña. El perfil muestra racha, historial, aciertos, premios, trivia e invitados.
+- **Trivia diaria** (`/trivia`): 5 preguntas al día, las mismas para todos, con las frases de Don Gato.
+- **Panel del administrador** (`/admin`): publicar la quiniela del día, meter resultados (califica sola), ver ganadores, alertas de posibles trampas, anular, bloquear y marcar premios como pagados.
+- **Bases** (`/bases`) y **aviso de privacidad** (`/privacidad`).
 
-Es una página estática: no necesita servidor ni base de datos.
+## Estructura
 
-## Qué editar
-
-| Archivo | Para qué |
+| Carpeta | Qué hay |
 |---|---|
-| `js/config.js` | Nombre de marca, TikTok, grupo de WhatsApp (vacío mientras esté deshabilitado), tu número, enlace de afiliado. **Empieza aquí.** |
-| `data/quiniela.js` | Partidos de la jornada, fecha de cierre, premio y tabla general. Cámbialo cada semana. |
-| `data/preguntas.js` y `data/frases.js` | Se generan solos desde el proyecto de TikTok (ver abajo). No los edites a mano. |
+| `public/` | Las páginas que ve la gente (HTML, CSS, JS, imágenes, fuente). |
+| `public/js/config.js` | Nombre, TikTok, WhatsApp, grupo y textos. **Lo que más vas a editar.** |
+| `server/` | El servidor (Node 22, sin dependencias externas) y la base de datos SQLite. |
+| `deploy/instalar.sh` | Instalador para el servidor de DigitalOcean. |
+| `tools/importar_trivias.py` | Copia las trivias y frases del proyecto de TikTok (`claudetrivia`). |
 
-## Flujo semanal sugerido
+## Instalar o actualizar en el servidor
 
-1. Lunes: actualiza `data/quiniela.js` con la nueva jornada y súbelo.
-2. Publica en TikTok: “¿Quién gana? Llena la quiniela gratis, link en mi perfil”.
-3. Las quinielas te llegan por WhatsApp; al terminar la jornada cuenta aciertos y actualiza `TABLA`.
-4. Publica la tabla en TikTok y en el canal: eso trae a más participantes.
-5. Cuando agregues trivias nuevas al proyecto de TikTok, actualiza la página (ver abajo).
+En la consola del servidor (DigitalOcean → Droplet → **Console**), como root:
 
-## Traer las trivias y frases del proyecto de TikTok
+```bash
+curl -fsSL https://raw.githubusercontent.com/xentygg/wallet/claude/crear-algo-ganar-dinero-njrn13/deploy/instalar.sh | bash
+```
 
-Las preguntas de la trivia y las frases de Don Gato salen de `claudetrivia` (carpeta `trivias/` y `personalidad.py`).
-Se importan los formatos `trivia`, `pregunta_del_dia`, `verdadero_falso` y `quien_tiene_mas`.
+La primera vez muestra la **contraseña del panel**: guárdala. Para actualizar la página después de un cambio, corre el mismo comando. La base de datos y la contraseña se conservan.
+
+- La base de datos está en `/var/lib/dongato/dongato.db` y se respalda cada día en `/var/lib/dongato/respaldos/` (se guardan 30 días).
+- Ver errores: `journalctl -u dongato -n 50`
+
+## Rutina diaria
+
+1. Entra a `/admin` y publica la quiniela del día: 5 partidos y la hora de cierre (antes del primer partido).
+2. Anúnciala en TikTok: "Atínale a los 5 y gánate $300, gratis".
+3. Cuando terminen los partidos, mete los resultados en el panel. Se califica sola. (El panel no deja meterlos antes del cierre.)
+4. Si hay ganador: revisa las alertas, pídele su INE por WhatsApp (botón "Avisarle"), paga y marca "Pagado".
+
+## Probar en tu computadora
+
+```bash
+ADMIN_PASSWORD=unaclavelarga123 node server/server.js
+# abre http://127.0.0.1:3000
+```
+
+## Traer trivias nuevas del proyecto de TikTok
 
 ```bash
 pip install pyyaml
 python3 tools/importar_trivias.py ../claudetrivia
 ```
 
-Las imágenes de `img/` y la fuente de `fonts/` (licencia OFL) también vienen de ese proyecto.
+## Pendientes legales
 
-## Publicarla gratis
-
-- **GitHub Pages:** en el repositorio, ve a *Settings → Pages* y elige la rama. Quedará en `https://TU_USUARIO.github.io/wallet/`.
-- **Netlify o Vercel:** conecta el repositorio; no hace falta configurar compilación.
-
-Pon ese enlace en la biografía de TikTok.
-
-## Antes de activar el registro
-
-- Confirma por escrito que tu programa de afiliados **permite dar compensación por registro** (muchos lo prohíben).
-- Si es una casa de apuestas, debe tener **permiso de SEGOB** para operar en México.
-- Mantén el aviso +18 y la regla de una cuenta por persona.
+- Cambiar `responsable` en `public/js/config.js` por el nombre real de quien responde por los datos (aviso de privacidad).
+- Consultar con un abogado o contador si el concurso con premios necesita permiso de la SEGOB.
+- No mencionar casinos ni apuestas en TikTok: la quiniela es gratis y no exige registrarse en ninguna otra plataforma.
