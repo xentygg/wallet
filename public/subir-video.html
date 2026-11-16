@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Subir video — {marca}</title>
+  <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/marca.css">
+  <link rel="icon" href="/img/perfil.webp">
+  <style>
+    .zona { border: 2px dashed var(--line); border-radius: var(--radio); padding: 28px 16px; text-align: center; cursor: pointer; }
+    .zona:hover, .zona.sobre { border-color: var(--amarillo); }
+    .barra { height: 14px; background: var(--card2); border-radius: 99px; overflow: hidden; margin: 14px 0 6px; }
+    .barra div { height: 100%; width: 0; background: var(--amarillo); transition: width .2s; }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap" style="max-width:560px">
+    <section class="card" style="margin-top:20px" id="caja">
+      <h2 class="titulo-sec">📹 Sube tu video del registro</h2>
+      <p>Tu video es <b>privado</b>: solo lo ve el equipo. Puede pesar hasta <b>500 MB</b>.</p>
+      <label class="zona" id="zona" for="archivo">
+        <div style="font-size:2.4rem">📁</div>
+        <b>Toca aquí para elegir tu video</b>
+        <div class="ayuda" id="elegido">Grabación de pantalla (mp4, mov…)</div>
+      </label>
+      <input type="file" id="archivo" accept="video/*" hidden>
+      <div id="progreso" hidden>
+        <div class="barra"><div id="relleno"></div></div>
+        <p class="ayuda" id="pct" style="text-align:center">0%</p>
+      </div>
+      <div id="msg" hidden></div>
+      <div class="fila" style="margin-top:14px"><button class="btn btn-pri" id="subir" disabled>Subir video</button></div>
+      <p class="ayuda" style="text-align:center">No cierres esta página mientras se sube. Con internet lento puede tardar unos minutos.</p>
+    </section>
+  </main>
+  <div id="footer"></div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    MC.montar("");
+    const token = new URLSearchParams(location.search).get("t") || "";
+    const MAX = 500 * 1024 * 1024;
+    let archivo = null;
+    const mensaje = (clase, texto) => { $("msg").className = clase; $("msg").textContent = texto; $("msg").hidden = !texto; };
+
+    if (!/^\d+\.[a-f0-9]{24}$/.test(token)) {
+      $("caja").innerHTML = '<h2 class="titulo-sec">Enlace no válido</h2><p>Usa el enlace que aparece en tu ticket de Discord.</p>';
+    }
+    function elegir(f) {
+      archivo = f || null; mensaje("", "");
+      if (!archivo) return;
+      if (!/^video\//.test(archivo.type)) { mensaje("error", "Ese archivo no es un video."); archivo = null; }
+      else if (archivo.size > MAX) { mensaje("error", "El video pesa más de 500 MB."); archivo = null; }
+      $("elegido").textContent = archivo ? `${archivo.name} · ${(archivo.size / 1048576).toFixed(1)} MB` : "Grabación de pantalla (mp4, mov…)";
+      $("subir").disabled = !archivo;
+    }
+    $("archivo").onchange = (e) => elegir(e.target.files[0]);
+    const zona = $("zona");
+    zona.ondragover = (e) => { e.preventDefault(); zona.classList.add("sobre"); };
+    zona.ondragleave = () => zona.classList.remove("sobre");
+    zona.ondrop = (e) => { e.preventDefault(); zona.classList.remove("sobre"); elegir(e.dataTransfer.files[0]); };
+
+    $("subir").onclick = () => {
+      if (!archivo) return;
+      $("subir").disabled = true; $("archivo").disabled = true; $("progreso").hidden = false; mensaje("", "");
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/video?t=" + encodeURIComponent(token));
+      xhr.setRequestHeader("Content-Type", archivo.type);
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const p = Math.round(e.loaded * 100 / e.total);
+        $("relleno").style.width = p + "%"; $("pct").textContent = p < 100 ? `${p}%` : "Procesando…";
+      };
+      xhr.onload = () => {
+        let r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+        if (xhr.status === 200) {
+          $("caja").innerHTML = '<h2 class="titulo-sec">✅ ¡Video recibido!</h2><p>Ya lo puede revisar el equipo. Regresa a tu ticket de Discord para continuar.</p>';
+        } else {
+          mensaje("error", r.error || "No se pudo subir. Intenta de nuevo."); $("subir").disabled = false; $("archivo").disabled = false;
+        }
+      };
+      xhr.onerror = () => { mensaje("error", "Se cortó la conexión. Revisa tu internet e intenta de nuevo."); $("subir").disabled = false; $("archivo").disabled = false; };
+      xhr.send(archivo);
+    };
+  </script>
+</body>
+</html>

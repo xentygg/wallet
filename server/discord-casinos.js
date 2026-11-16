@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { api, espera, leerConfig, CONFIG_PATH } = require("./discord");
 const MARCA = require("./marca");
+const videos = require("./videos");
 
 const VIEW = 1n << 10n, SEND = 1n << 11n, REACT = 1n << 6n, HISTORY = 1n << 16n, ATTACH = 1n << 15n, EMBED = 1n << 14n,
   MANAGE_MSG = 1n << 13n;
@@ -58,11 +59,11 @@ const TEXTO_PAGOS = `# ✅ Pagos realizados
 Aquí publicamos las pruebas de los refills que ya depositamos, para que veas que es real. Solo el equipo puede escribir en este canal.
 🔒 En las capturas se tapan siempre los datos personales.`;
 
-const TEXTO_TICKET = (uid) => `👋 ¡Hola <@${uid}>! Este es tu ticket privado. Mándanos aquí:
+const TEXTO_TICKET = (uid, canal) => `👋 ¡Hola <@${uid}>! Este es tu ticket privado. Mándanos aquí:
 
 **1.** ¿De qué casino es tu registro? (Winpot, Sportium, Jugabet, Winner o Stake)
 **2.** Tu **video del registro**. En **Jugabet**, en lugar del video, tu **ID de jugador**.
-   Si el video pesa mucho para Discord, súbelo a Google Drive y pega aquí el enlace.
+   📹 **¿Tu video pesa mucho para Discord?** Súbelo aquí, es privado y solo lo ve el equipo: ${MARCA.sitio_url}/subir-video?t=${videos.tokenDe(canal)}
 **3.** El **número de tu tarjeta de débito o tu CLABE**, a tu nombre, para depositarte.
 **4.** Cuando ya hayas depositado en el casino, la **captura** del depósito.
 
@@ -199,7 +200,7 @@ async function manejarInteraccion(it, anotar = () => {}) {
     });
     await exentarEnlaces(cfg, ch.id, true);
     await api("POST", `/channels/${ch.id}/messages`, {
-      content: TEXTO_TICKET(usuario.id), allowed_mentions: { users: [usuario.id] },
+      content: TEXTO_TICKET(usuario.id, ch.id), allowed_mentions: { users: [usuario.id] },
       components: [{ type: 1, components: [{ type: 2, style: 4, label: "Cerrar ticket", emoji: { name: "🔒" }, custom_id: "ticket_cerrar" }] }],
     });
     await responder(it, `✅ Listo, abrimos tu ticket privado: <#${ch.id}>`);

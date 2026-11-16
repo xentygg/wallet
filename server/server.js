@@ -669,6 +669,31 @@ function avisarResultadosDiscord(qid) {
     else db.prepare("UPDATE quinielas SET discord_resultado = 0 WHERE id = ?").run(qid);
   });
 }
+// ---------- Videos de los tickets (Discord sin Nitro solo acepta 10 MB) ----------
+const videos = require("./videos");
+ruta("POST", "/api/video", async (req, res) => {
+  const canal = videos.canalDeToken(new URL(req.url, "http://x").searchParams.get("t"));
+  if (!canal) falla(403, "Este enlace no es válido. Pide uno nuevo en tu ticket.");
+  if (limitar("video:" + ipDe(req), 10, 60)) falla(429, "Demasiados intentos. Espera un rato.");
+  let r;
+  try { r = await videos.guardar(req, canal); }
+  catch (e) { falla(e.estado || 500, e.estado ? e.message : "No se pudo guardar el video. Intenta de nuevo."); }
+  await discord.api("POST", `/channels/${canal}/messages`, {
+    content: `📹 **Video recibido** (${videos.tamano(r.bytes)}). ¡Gracias! Ya lo puede revisar el equipo.\n🔒 Equipo, véanlo aquí (pide la contraseña del panel): ${MARCA.sitio_url}/api/admin/video/${r.archivo}`,
+    allowed_mentions: { parse: [] },
+  }).catch((e) => anotarLog("error", `Video recibido pero no pude avisar en el ticket: ${e.message}`));
+  anotarLog("discord", `Video recibido en un ticket (${videos.tamano(r.bytes)}).`);
+  responder(res, 200, { ok: true });
+});
+ruta("GET", "/api/admin/video/:archivo", async (req, res, p) => {
+  const s = sesionDe(req);
+  if (!s || !s.es_admin) {
+    res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" });
+    return res.end('<meta charset="utf-8"><meta name="viewport" content="width=device-width"><p style="font-family:sans-serif">🔒 Para ver este video primero <a href="/admin">inicia sesión en el panel</a> y luego vuelve a abrir el enlace.</p>');
+  }
+  videos.servir(req, res, decodeURIComponent(p.archivo));
+});
+
 // Enlace de invitación para la página (lo crea server/discord-configurar.js)
 ruta("GET", "/api/discord", async (req, res) => {
   const cfg = discord.leerConfig();
