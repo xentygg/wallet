@@ -107,7 +107,7 @@
     if (!C.discord) return "";
     if (tipo === "corto") return `
       <div class="discord-corto">
-        <div><b>${texto || "Sigue los partidos en vivo con la comunidad"}</b><span>Refills de bank, premios más grandes y dinámicas: solo en el Discord de Don Gato.</span></div>
+        <div><b>${texto || "Sigue los partidos en vivo con la comunidad"}</b><span>Recompensas exclusivas, premios más grandes y dinámicas: solo en el Discord de Don Gato.</span></div>
         <a class="btn btn-discord" href="${C.discord}" target="_blank" rel="noopener">Entrar al Discord</a>
       </div>`;
     return `
@@ -116,7 +116,7 @@
         <h2>Únete al Discord 🎮</h2>
         <p>Aquí es donde se arma la buena. Entra gratis y llévate:</p>
         <ul>
-          <li>💰 <b>Refills de bank</b> para todos los que se unan</li>
+          <li>🎁 <b>Recompensas exclusivas</b> para todos los que se unan</li>
           <li>🏆 <b>Premios más grandes</b> que en la página</li>
           <li>🎉 <b>Dinámicas</b> y retos con premio</li>
           <li>⚽ <b>Partidos en vivo</b> con la comunidad y quién va ganando la quiniela</li>
