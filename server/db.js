@@ -82,6 +82,8 @@ if (!columnas.includes("empate")) db.exec("ALTER TABLE partidos ADD COLUMN empat
 if (!columnas.includes("fixture_id")) db.exec("ALTER TABLE partidos ADD COLUMN fixture_id INTEGER"); // id del partido en API-Football (quinielas automáticas)
 const colQ = db.prepare("PRAGMA table_info(quinielas)").all().map((c) => c.name);
 if (!colQ.includes("auto")) db.exec("ALTER TABLE quinielas ADD COLUMN auto INTEGER NOT NULL DEFAULT 0");
+if (!colQ.includes("discord_quiniela")) db.exec("ALTER TABLE quinielas ADD COLUMN discord_quiniela INTEGER NOT NULL DEFAULT 0");   // ya se anunció en Discord
+if (!colQ.includes("discord_resultado")) db.exec("ALTER TABLE quinielas ADD COLUMN discord_resultado INTEGER NOT NULL DEFAULT 0"); // ya se publicó el ganador
 if (!colQ.includes("premio_cancelado")) db.exec("ALTER TABLE quinielas ADD COLUMN premio_cancelado INTEGER NOT NULL DEFAULT 200"); // premio si se cancela 1 partido
 if (!columnas.includes("goles_local")) db.exec("ALTER TABLE partidos ADD COLUMN goles_local INTEGER");   // marcador al final del tiempo reglamentario
 if (!columnas.includes("goles_visita")) db.exec("ALTER TABLE partidos ADD COLUMN goles_visita INTEGER");

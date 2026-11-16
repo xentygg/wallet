@@ -90,7 +90,14 @@
     document.getElementById("footer").innerHTML = footer();
     document.title = document.title.replace("{marca}", C.marca);
     let usuario = null;
-    try { usuario = (await api("GET", "/api/yo")).usuario; } catch (e) {}
+    const [yo, dc] = await Promise.all([api("GET", "/api/yo").catch(() => ({})), C.discord ? null : api("GET", "/api/discord").catch(() => ({}))]);
+    usuario = yo.usuario || null;
+    // Si config.js no trae el enlace de Discord, se usa el que creó el bot en el servidor
+    if (!C.discord && dc && dc.invitacion) {
+      C.discord = dc.invitacion;
+      document.getElementById("header").innerHTML = header(activa);
+      document.getElementById("footer").innerHTML = footer();
+    }
     const nav = document.getElementById("nav-cuenta");
     if (usuario) {
       store.set("mc_mi_codigo_cuenta", usuario.ref_code);

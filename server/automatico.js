@@ -67,14 +67,17 @@ async function armar(fecha, minTs) {
   const primero = elegidos[0].fixture.timestamp * 1000;
   const cierre = new Date(primero - AJUSTES.minutosCierreAntes * 60000).toISOString();
 
+  let qidNueva;
   db.exec("BEGIN");
   try {
     const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio, premio_cancelado, auto) VALUES (?, ?, ?, ?, 1)").run(fecha, cierre, AJUSTES.premio, AJUSTES.premioConCancelado);
     const ins = db.prepare("INSERT INTO partidos (quiniela_id, orden, liga, local, visita, hora, empate, fixture_id) VALUES (?, ?, ?, ?, ?, ?, 1, ?)");
     elegidos.forEach((f, i) => ins.run(r.lastInsertRowid, i + 1, String(f.league.name).slice(0, 30), String(f.teams.home.name).slice(0, 40),
       String(f.teams.away.name).slice(0, 40), etiquetaHora(f.fixture.timestamp), f.fixture.id));
+    qidNueva = r.lastInsertRowid;
     db.exec("COMMIT");
   } catch (e) { db.exec("ROLLBACK"); throw e; }
+  deps.avisarQuinielaDiscord(Number(qidNueva));
   anotar("quiniela", `Publiqué la quiniela del ${fecha}: ${elegidos.map((f) => `${f.teams.home.name} vs ${f.teams.away.name} (${f.league.name})`).join(" · ")}`);
   return true;
 }
@@ -121,6 +124,7 @@ async function revisarResultados() {
     else anotar(g ? "ganador" : "calificada", g
       ? `Quiniela del ${r.q.fecha} calificada. 🏆 Ganador: ${g.apodo} (${g.telefono}), $${g.monto}${g.empatados > 1 ? `. Desempate entre ${g.empatados} por total de goles (${r.totalGoles}).` : "."} Revisa su INE y paga desde el panel.`
       : `Quiniela del ${r.q.fecha} calificada. Nadie le atinó a todos.`);
+    deps.avisarResultadosDiscord(qid);
   }
 }
 

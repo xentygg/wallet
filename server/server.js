@@ -413,6 +413,7 @@ ruta("POST", "/api/admin/quinielas", async (req, res) => {
   const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio, premio_cancelado) VALUES (?, ?, ?, ?)").run(fecha, new Date(b.cierre).toISOString(), premio, premioCancelado);
   const ins = db.prepare("INSERT INTO partidos (quiniela_id, orden, liga, local, visita, hora, empate) VALUES (?, ?, ?, ?, ?, ?, ?)");
   ps.forEach((x, i) => ins.run(r.lastInsertRowid, i + 1, limpiar(x.liga, 30), limpiar(x.local, 40), limpiar(x.visita, 40), limpiar(x.hora, 30), x.empate === false ? 0 : 1));
+  avisarQuinielaDiscord(Number(r.lastInsertRowid));
   responder(res, 201, { ok: true, id: Number(r.lastInsertRowid) });
 });
 
@@ -470,7 +471,9 @@ ruta("POST", "/api/admin/quinielas/:id/resultados", async (req, res, p) => {
   const upd = db.prepare("UPDATE partidos SET resultado = ?, goles_local = ?, goles_visita = ? WHERE id = ? AND quiniela_id = ?");
   db.exec("BEGIN");
   try { for (const c of cambios) upd.run(...c, qid); db.exec("COMMIT"); } catch (e) { db.exec("ROLLBACK"); throw e; }
-  responder(res, 200, { ok: true, calificada: calificar(qid) });
+  const calificada = calificar(qid);
+  if (calificada) avisarResultadosDiscord(qid);
+  responder(res, 200, { ok: true, calificada });
 });
 
 ruta("POST", "/api/admin/entradas/:id", async (req, res, p) => {
@@ -573,8 +576,36 @@ ruta("POST", "/api/admin/automatico/ahora", async (req, res) => {
 });
 
 module.exports = { servidor, normalizarTelefono, rachas, lunesDe, calificar, partidosDe, fechaMX, sumarDias };
+// ---------- Discord: anunciar quinielas y ganadores (una sola vez cada cosa) ----------
+const discord = require("./discord");
+function anotarLog(tipo, mensaje) { db.prepare("INSERT INTO auto_log (tipo, mensaje) VALUES (?, ?)").run(tipo, String(mensaje).slice(0, 500)); }
+function avisarQuinielaDiscord(qid) {
+  const q = db.prepare("SELECT * FROM quinielas WHERE id = ?").get(qid);
+  if (!q || q.discord_quiniela || !discord.activo()) return;
+  db.prepare("UPDATE quinielas SET discord_quiniela = 1 WHERE id = ?").run(qid);
+  discord.publicar("quiniela", discord.mensajeQuiniela(q, partidosDe(qid)), anotarLog).then((ok) => {
+    if (ok) anotarLog("discord", `Anuncié en Discord la quiniela del ${q.fecha}.`);
+    else db.prepare("UPDATE quinielas SET discord_quiniela = 0 WHERE id = ?").run(qid);
+  });
+}
+function avisarResultadosDiscord(qid) {
+  const q = db.prepare("SELECT * FROM quinielas WHERE id = ?").get(qid);
+  if (!q || !q.calificada || q.discord_resultado || !discord.activo()) return;
+  db.prepare("UPDATE quinielas SET discord_resultado = 1 WHERE id = ?").run(qid);
+  const r = reglasDe(qid), g = ganadoresDe({ id: qid })[0];
+  discord.publicar("ganadores", discord.mensajeResultados(r, g), anotarLog).then((ok) => {
+    if (ok) anotarLog("discord", `Publiqué en Discord los resultados del ${q.fecha}.`);
+    else db.prepare("UPDATE quinielas SET discord_resultado = 0 WHERE id = ?").run(qid);
+  });
+}
+// Enlace de invitación para la página (lo crea server/discord-configurar.js)
+ruta("GET", "/api/discord", async (req, res) => {
+  const cfg = discord.leerConfig();
+  responder(res, 200, { invitacion: cfg && cfg.invitacion ? cfg.invitacion : null });
+});
+
 const automatico = require("./automatico");
 servidor.listen(PORT, "127.0.0.1", () => {
   console.log(`Don Gato escuchando en http://127.0.0.1:${PORT}`);
-  automatico.iniciar({ calificar, reglasDe, ganadoresDe, fechaMX, sumarDias });
+  automatico.iniciar({ calificar, reglasDe, ganadoresDe, fechaMX, sumarDias, avisarQuinielaDiscord, avisarResultadosDiscord });
 });

@@ -46,6 +46,18 @@ Guardar la clave (en la consola del servidor; la clave no se ve al pegarla):
 read -s -p "Pega tu clave de API-Football y presiona Enter: " K; echo; sed -i '/^API_FOOTBALL_KEY=/d' /etc/dongato.env; echo "API_FOOTBALL_KEY=$K" >> /etc/dongato.env; systemctl restart dongato; echo "Clave guardada."
 ```
 
+## Discord (bot de Don Gato)
+
+El bot arma el servidor de Discord (categorías, canales, permisos, reglas, bienvenida, ícono, seguridad e invitación permanente) y después publica solo la quiniela del día en `#quiniela-del-día` y los resultados y el ganador en `#ganadores`. La página toma sola el enlace de invitación.
+
+Guardar el token del bot y configurar el servidor (en la consola del servidor; el token no se ve al pegarlo):
+
+```bash
+read -s -p "Pega el token del bot y presiona Enter: " T; echo; sed -i '/^DISCORD_BOT_TOKEN=/d' /etc/dongato.env; echo "DISCORD_BOT_TOKEN=$T" >> /etc/dongato.env; cd /opt/dongato && set -a && . /etc/dongato.env && set +a && node --disable-warning=ExperimentalWarning server/discord-configurar.js && systemctl restart dongato
+```
+
+Se puede volver a correr: solo crea lo que falte, no borra nada.
+
 ## Rutina diaria
 
 1. Con la quiniela automática no hace falta publicar nada. Si está apagada: entra a `/admin` y publica la quiniela del día (5 partidos y la hora de cierre, antes del primer partido).

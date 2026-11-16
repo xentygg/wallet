@@ -139,8 +139,10 @@
       }
 
       const tira = [`<div><b>${pesos(q ? q.premio : 300)}</b><span>premio diario</span></div>`, `<div><b>Gratis</b><span>para jugar</span></div>`];
-      if (C.discord) tira.push(`<div><b>Discord</b><span>premios más grandes</span></div>`);
-      $("tira").innerHTML = tira.join(""); $("tira").hidden = false;
+      sesion.then(() => {
+        if (C.discord) tira.push(`<div><b>Discord</b><span>premios más grandes</span></div>`);
+        $("tira").innerHTML = tira.join(""); $("tira").hidden = false;
+      });
 
       $("muro").innerHTML = d.muro.length
         ? `${d.muro.map((g) => `<div class="ganador-fila">
@@ -167,8 +169,10 @@
 
     // ---------- Comunidad, registro e invitaciones ----------
     $("link-canal").href = "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent("Hola Don Gato 😎, vengo de la página.");
-    $("discord-portada").innerHTML = MC.discord("grande");
-    $("discord-final").innerHTML = MC.discord("corto", "¿Ya estás en el Discord de Don Gato?");
+    sesion.then(() => {
+      $("discord-portada").innerHTML = MC.discord("grande");
+      $("discord-final").innerHTML = MC.discord("corto", "¿Ya estás en el Discord de Don Gato?");
+    });
     if (C.registro.activo) {
       $("registro").hidden = false;
       $("reg-titulo").textContent = C.registro.titulo;
