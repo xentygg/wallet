@@ -7,7 +7,7 @@ import importlib.util, json, pathlib, sys
 import yaml
 
 origen = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "../claudetrivia")
-destino = pathlib.Path(__file__).resolve().parent.parent / "data"
+destino = pathlib.Path(__file__).resolve().parent.parent / "public" / "data"
 
 DEPORTES = {"futbol": "Futbol", "nfl": "NFL", "beisbol": "Béisbol"}
 FORMATOS = {"trivia", "pregunta_del_dia", "verdadero_falso", "quien_tiene_mas"}

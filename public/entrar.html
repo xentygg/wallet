@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar — {marca}</title>
+  <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="/img/perfil.webp">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap" style="max-width:520px">
+    <section class="card" style="margin-top:20px">
+      <div class="tabs">
+        <button id="tab-nueva" type="button">Crear cuenta</button>
+        <button id="tab-entrar" type="button">Ya tengo cuenta</button>
+      </div>
+
+      <form id="f-nueva" class="form" novalidate>
+        <h2 class="titulo-sec" style="margin:0">Crea tu cuenta gratis</h2>
+        <p style="margin:0">Con tu cuenta juegas la quiniela diaria, guardas tus resultados y puedes ganar premios.</p>
+        <div>
+          <label for="n-nombre">Nombre completo</label>
+          <input type="text" id="n-nombre" autocomplete="name" maxlength="80" required>
+          <div class="ayuda">Tal como aparece en tu INE. Es privado: solo lo usamos para entregarte tu premio.</div>
+        </div>
+        <div>
+          <label for="n-apodo">Apodo</label>
+          <input type="text" id="n-apodo" maxlength="24" placeholder="Ej. El Profe" required>
+          <div class="ayuda">Es lo que se verá en las tablas y en la lista de ganadores.</div>
+        </div>
+        <div>
+          <label for="n-tel">Celular (WhatsApp)</label>
+          <input type="tel" id="n-tel" autocomplete="tel" inputmode="numeric" maxlength="16" placeholder="10 dígitos" required>
+          <div class="ayuda">Un celular = una cuenta. Por aquí te avisamos si ganas.</div>
+        </div>
+        <div>
+          <label for="n-pass">Contraseña</label>
+          <input type="password" id="n-pass" autocomplete="new-password" minlength="8" required>
+          <div class="ayuda">Mínimo 8 caracteres.</div>
+        </div>
+        <label class="check"><input type="checkbox" id="n-mayor"> Soy mayor de 18 años.</label>
+        <label class="check"><input type="checkbox" id="n-acepta"> Acepto las <a href="/bases" target="_blank">bases de la quiniela</a> y el <a href="/privacidad" target="_blank">aviso de privacidad</a>.</label>
+        <div id="n-error" class="error" hidden></div>
+        <button class="btn btn-pri" type="submit">Crear mi cuenta</button>
+      </form>
+
+      <form id="f-entrar" class="form" novalidate hidden>
+        <h2 class="titulo-sec" style="margin:0">Bienvenido de vuelta</h2>
+        <div>
+          <label for="e-tel">Celular</label>
+          <input type="tel" id="e-tel" autocomplete="tel" inputmode="numeric" maxlength="16" placeholder="10 dígitos" required>
+        </div>
+        <div>
+          <label for="e-pass">Contraseña</label>
+          <input type="password" id="e-pass" autocomplete="current-password" required>
+        </div>
+        <div id="e-error" class="error" hidden></div>
+        <button class="btn btn-pri" type="submit">Entrar</button>
+        <p class="ayuda" style="text-align:center">¿Olvidaste tu contraseña? <a id="olvido" target="_blank" rel="noopener">Escríbenos por WhatsApp</a>.</p>
+      </form>
+    </section>
+  </main>
+  <div id="footer"></div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const volver = /^\/[a-z]*$/.test(params.get("volver") || "") ? params.get("volver") : "/quiniela";
+
+    MC.montar("perfil").then((u) => { if (u) location.replace(volver); });
+    $("olvido").href = "https://wa.me/" + CONFIG.whatsappOrganizador + "?text=" + encodeURIComponent("Hola Don Gato, olvidé mi contraseña de la página.");
+
+    function pestaña(nueva) {
+      $("f-nueva").hidden = !nueva; $("f-entrar").hidden = nueva;
+      $("tab-nueva").classList.toggle("activo", nueva); $("tab-entrar").classList.toggle("activo", !nueva);
+    }
+    $("tab-nueva").onclick = () => pestaña(true);
+    $("tab-entrar").onclick = () => pestaña(false);
+    pestaña(params.get("nueva") === "1" || !MC.store.get("mc_ya_tuvo_cuenta"));
+
+    function mostrarError(id, msg) { $(id).textContent = msg; $(id).hidden = !msg; }
+
+    $("f-nueva").onsubmit = async (e) => {
+      e.preventDefault();
+      mostrarError("n-error", "");
+      const btn = e.submitter; btn.disabled = true;
+      try {
+        await MC.api("POST", "/api/registro", {
+          nombre: $("n-nombre").value, apodo: $("n-apodo").value, telefono: $("n-tel").value, password: $("n-pass").value,
+          mayor: $("n-mayor").checked, acepta: $("n-acepta").checked, ref: MC.store.get("mc_ref_origen") || ""
+        });
+        MC.store.set("mc_ya_tuvo_cuenta", true);
+        location.replace(volver);
+      } catch (err) { mostrarError("n-error", err.message); btn.disabled = false; }
+    };
+
+    $("f-entrar").onsubmit = async (e) => {
+      e.preventDefault();
+      mostrarError("e-error", "");
+      const btn = e.submitter; btn.disabled = true;
+      try {
+        await MC.api("POST", "/api/entrar", { telefono: $("e-tel").value, password: $("e-pass").value });
+        MC.store.set("mc_ya_tuvo_cuenta", true);
+        location.replace(volver);
+      } catch (err) { mostrarError("e-error", err.message); btn.disabled = false; }
+    };
+  </script>
+</body>
+</html>

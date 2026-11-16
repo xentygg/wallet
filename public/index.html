@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{marca} — Trivias y quinielas deportivas</title>
   <meta name="description" content="Trivia deportiva diaria, quinielas gratis y datos curiosos con Don Gato.">
-  <link rel="preload" href="fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="icon" href="img/perfil.webp">
+  <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="/img/perfil.webp">
 </head>
 <body>
   <div id="header"></div>
@@ -19,8 +19,8 @@
       <span class="letrero">Aquí no hay VAR que te salve</span>
       <p id="eslogan"></p>
       <div class="fila">
-        <a class="btn btn-pri" href="trivia.html">🧠 Jugar la trivia de hoy</a>
-        <a class="btn btn-sec" href="quiniela.html">⚽ Llenar la quiniela</a>
+        <a class="btn btn-pri" href="/trivia">🧠 Jugar la trivia de hoy</a>
+        <a class="btn btn-sec" href="/quiniela">⚽ Quiniela: gana $300</a>
       </div>
     </div>
 
@@ -29,13 +29,13 @@
         <div class="ico">🧠</div>
         <h3>Trivia diaria</h3>
         <p>5 preguntas nuevas cada día. Compara tu resultado con tus amigos.</p>
-        <a class="btn btn-sec" href="trivia.html">Jugar</a>
+        <a class="btn btn-sec" href="/trivia">Jugar</a>
       </div>
       <div class="card">
         <div class="ico">🏆</div>
         <h3>Quiniela gratis</h3>
-        <p>Pronostica la jornada, mándala por WhatsApp y sube en la tabla.</p>
-        <a class="btn btn-sec" href="quiniela.html">Participar</a>
+        <p>5 partidos cada día. Atínale a todos y gánate $300. Gratis, una por persona al día.</p>
+        <a class="btn btn-sec" href="/quiniela">Participar</a>
       </div>
       <div class="card">
         <div class="ico">📱</div>
@@ -54,8 +54,9 @@
 
     <section class="card">
       <h2 class="titulo-sec">Invita a tus compas</h2>
-      <p>Comparte tu enlace personal. Así sabemos quién trae más gente a la comunidad.</p>
-      <div class="ref-box">
+      <p id="ref-texto">Comparte tu enlace personal. Así sabemos quién trae más gente a la comunidad.</p>
+      <a class="btn btn-pri" id="ref-crear" href="/entrar?nueva=1" hidden>Crear mi cuenta gratis</a>
+      <div class="ref-box" id="ref-box">
         <input type="text" id="mi-link" readonly>
         <button class="btn btn-sec" id="copiar">Copiar</button>
         <button class="btn btn-wa" id="compartir">WhatsApp</button>
@@ -71,11 +72,11 @@
 
   <div id="footer"></div>
 
-  <script src="js/config.js"></script>
-  <script src="js/common.js"></script>
+  <script src="/js/config.js"></script>
+  <script src="/js/common.js"></script>
   <script>
     const C = window.CONFIG;
-    MC.montar("inicio");
+    const sesion = MC.montar("inicio");
     document.getElementById("gato-hero").innerHTML = MC.gato;
     document.getElementById("eslogan").textContent = C.eslogan;
     document.getElementById("link-tiktok").href = C.tiktok;
@@ -99,15 +100,20 @@
       document.getElementById("reg-aviso").hidden = !C.registro.soloMayores;
     }
 
-    const miLink = MC.urlConMiRef("index.html");
+    sesion.then((usuario) => {
+      if (usuario) return;
+      document.getElementById("ref-texto").textContent = "Crea tu cuenta y te damos tu enlace personal para invitar a tus compas.";
+      document.getElementById("ref-box").hidden = true;
+      document.getElementById("ref-crear").hidden = false;
+    });
     const inp = document.getElementById("mi-link");
-    inp.value = miLink;
+    sesion.then(() => { inp.value = MC.urlConMiRef("/"); });
     document.getElementById("copiar").onclick = async (e) => {
-      try { await navigator.clipboard.writeText(miLink); } catch (_) { inp.select(); document.execCommand("copy"); }
+      try { await navigator.clipboard.writeText(inp.value); } catch (_) { inp.select(); document.execCommand("copy"); }
       e.target.textContent = "¡Copiado!";
     };
     document.getElementById("compartir").onclick = () =>
-      MC.compartirWhatsApp(`😎 ¿Sabes de deportes o nomás opinas? Juega la trivia diaria y la quiniela gratis de ${C.marca}: ${miLink}`);
+      MC.compartirWhatsApp(`😎 ¿Sabes de deportes o nomás opinas? Juega la trivia diaria y la quiniela gratis de ${C.marca}: ${inp.value}`);
   </script>
 </body>
 </html>

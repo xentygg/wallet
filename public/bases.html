@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bases de la quiniela — {marca}</title>
+  <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="/img/perfil.webp">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap">
+    <section class="card texto-legal" style="margin-top:20px">
+      <h1 class="titulo-sec">Bases de la quiniela diaria</h1>
+      <p>Al crear tu cuenta y enviar una quiniela aceptas estas bases.</p>
+
+      <h2>1. Participación gratuita</h2>
+      <p>La quiniela es <b>gratis</b>. No se necesita comprar nada, depositar dinero ni registrarse en ninguna otra plataforma para participar o para ganar.</p>
+
+      <h2>2. Quién puede participar</h2>
+      <ul>
+        <li>Personas <b>mayores de 18 años</b> que vivan en México.</li>
+        <li>Se necesita una cuenta en esta página. <b>Una cuenta por persona</b> y un celular por cuenta.</li>
+      </ul>
+
+      <h2>3. Cómo se juega</h2>
+      <ul>
+        <li>Cada día se publica una quiniela con <b>5 partidos</b>.</li>
+        <li>En cada partido eliges: <b>L</b> (gana el local), <b>E</b> (empate) o <b>V</b> (gana el visitante).</li>
+        <li>Cuenta el resultado al final del tiempo reglamentario, sin tiempos extra ni penales, salvo que el partido indique otra cosa.</li>
+        <li>La quiniela cierra a la hora indicada, antes del primer partido. Lo que se envíe después no cuenta.</li>
+        <li>Una vez enviada, la quiniela <b>no se puede cambiar</b>.</li>
+      </ul>
+
+      <h2>4. Una quiniela por persona al día</h2>
+      <p>Cada persona puede enviar <b>una sola quiniela por día</b>. Si se detecta que una misma persona participó con más de una cuenta el mismo día, <b>todas sus quinielas de ese día se anulan</b> y sus cuentas pueden ser suspendidas.</p>
+
+      <h2>5. Premio</h2>
+      <ul>
+        <li>El premio del día aparece en la quiniela (normalmente <b>$300 MXN</b>).</li>
+        <li>Gana quien le atine a <b>los 5 partidos</b>.</li>
+        <li>Si varias personas le atinan a todos, <b>el premio se reparte en partes iguales</b>.</li>
+        <li>Si nadie le atina a todos, ese día no hay premio y <b>no se acumula</b>.</li>
+        <li>Una persona puede ganar en días distintos, siempre con una sola quiniela por día.</li>
+      </ul>
+
+      <h2>6. Partidos suspendidos o cancelados</h2>
+      <p>Si un partido no se juega o se suspende y no termina ese mismo día, se considera <b>acierto para todos</b>.</p>
+
+      <h2>7. Cómo se entrega el premio</h2>
+      <ul>
+        <li>Te contactamos por WhatsApp al celular de tu cuenta.</li>
+        <li>Para cobrar debes mostrar tu <b>INE</b>. El nombre debe coincidir con el de tu cuenta.</li>
+        <li>El premio se entrega por transferencia o depósito a una cuenta a tu nombre, dentro de los 7 días siguientes a la verificación.</li>
+        <li>Tienes <b>15 días</b> para responder y cobrar. Si no, el premio se pierde.</li>
+      </ul>
+
+      <h2>8. Resultados y ganadores</h2>
+      <p>Los resultados y el apodo de los ganadores se publican en esta página y pueden mencionarse en nuestras redes sociales. Tu nombre completo y tu celular nunca se publican.</p>
+
+      <h2>9. Juego limpio</h2>
+      <p>Nos reservamos el derecho de anular quinielas o suspender cuentas cuando haya indicios de trampa: cuentas duplicadas, datos falsos o uso de programas automáticos. En caso de duda, la decisión del organizador es final.</p>
+
+      <h2>10. Cambios</h2>
+      <p>Estas bases pueden actualizarse. Los cambios aplican a las quinielas que se publiquen después de la actualización.</p>
+
+      <p class="aviso" style="margin-top:22px">¿Dudas? Escríbenos por <a id="wa-bases" target="_blank" rel="noopener">WhatsApp</a>.</p>
+    </section>
+  </main>
+  <div id="footer"></div>
+  <script src="/js/config.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    MC.montar("");
+    document.getElementById("wa-bases").href = "https://wa.me/" + CONFIG.whatsappOrganizador;
+  </script>
+</body>
+</html>

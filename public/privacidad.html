@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aviso de privacidad — {marca}</title>
+  <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="/img/perfil.webp">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap">
+    <section class="card texto-legal" style="margin-top:20px">
+      <h1 class="titulo-sec">Aviso de privacidad</h1>
+
+      <h2>Quién es responsable de tus datos</h2>
+      <p><b id="responsable"></b>, responsable de la página <span id="dominio"></span>, es responsable del uso y protección de tus datos personales. Contacto: WhatsApp <span id="tel"></span>.</p>
+
+      <h2>Qué datos recabamos</h2>
+      <ul>
+        <li>Nombre completo, apodo y número de celular.</li>
+        <li>Tus pronósticos de la quiniela y tus resultados de la trivia.</li>
+        <li>Dirección IP y tipo de navegador o celular con el que te conectas.</li>
+        <li>Si ganas: una foto de tu INE y los datos de la cuenta donde recibirás el premio.</li>
+      </ul>
+
+      <h2>Para qué los usamos</h2>
+      <ul>
+        <li>Crear y administrar tu cuenta.</li>
+        <li>Registrar tus quinielas, calcular resultados y publicar la tabla con tu apodo.</li>
+        <li>Verificar tu identidad y entregarte tu premio.</li>
+        <li>Detectar cuentas duplicadas y trampas (para esto usamos la IP y el tipo de dispositivo).</li>
+        <li>Contactarte por WhatsApp sobre la quiniela y tus premios.</li>
+      </ul>
+
+      <h2>Con quién los compartimos</h2>
+      <p>No vendemos ni compartimos tus datos con terceros, salvo cuando lo exija una autoridad.</p>
+
+      <h2>Tus derechos (ARCO)</h2>
+      <p>Puedes pedir acceder a tus datos, corregirlos, cancelarlos (borrar tu cuenta) u oponerte a su uso. Escríbenos por WhatsApp indicando tu nombre y celular registrado. Te responderemos en un máximo de 20 días hábiles.</p>
+
+      <h2>Cuánto tiempo los guardamos</h2>
+      <p>Mientras tengas tu cuenta. Si la borras, eliminamos tus datos, salvo los necesarios para comprobar premios ya entregados. La foto de tu INE se borra después de entregarte el premio.</p>
+
+      <h2>Cookies</h2>
+      <p>Usamos una sola cookie para mantener tu sesión iniciada. No usamos cookies de publicidad.</p>
+
+      <h2>Cambios</h2>
+      <p>Si cambiamos este aviso, lo publicaremos en esta misma página.</p>
+      <p class="ayuda">Última actualización: noviembre de 2026.</p>
+    </section>
+  </main>
+  <div id="footer"></div>
+  <script src="/js/config.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+    MC.montar("");
+    document.getElementById("responsable").textContent = CONFIG.responsable;
+    document.getElementById("dominio").textContent = location.host;
+    document.getElementById("tel").textContent = CONFIG.whatsappOrganizador.slice(2).replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
+  </script>
+</body>
+</html>

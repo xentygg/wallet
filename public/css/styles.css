@@ -129,3 +129,42 @@ td.num { text-align: right; font-weight: 900; color: var(--amarillo); }
   .partido .eq.v { text-align: center; }
   .picks { justify-content: center; }
 }
+
+[hidden] { display: none !important; }
+
+/* Formularios y cuentas */
+.form { display: grid; gap: 14px; }
+.form .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; color: var(--muted); }
+.form .check input { margin-top: 4px; width: 18px; height: 18px; accent-color: var(--amarillo); flex: none; }
+input[type=tel], input[type=password], input[type=date], input[type=datetime-local], input[type=number], select {
+  width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card2); color: var(--txt); font: inherit;
+}
+.ayuda { font-size: .82rem; color: var(--muted); margin-top: 4px; }
+.error { background: rgba(228,36,44,.15); border: 1px solid var(--rojo); color: #ffb3b6; border-radius: 12px; padding: 10px 12px; }
+.exito { background: rgba(22,178,80,.15); border: 1px solid var(--verde); color: #a8f0c4; border-radius: 12px; padding: 10px 12px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--card2); padding: 5px; border-radius: 999px; }
+.tabs button { flex: 1; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 800; padding: 9px; border-radius: 999px; cursor: pointer; }
+.tabs button.activo { background: var(--amarillo); color: #000; }
+
+/* Quiniela con premio */
+.premio { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--amarillo); color: #000; border-radius: var(--radio); padding: 16px 18px; margin-bottom: 16px; }
+.premio .monto { font-size: 2.2rem; font-weight: 900; font-style: oblique 6deg; line-height: 1; }
+.premio small { display: block; font-weight: 700; }
+.liga { display: block; grid-column: 1 / -1; text-align: center; font-size: .72rem; font-weight: 800; text-transform: uppercase; color: var(--amarillo); }
+.pick.ok { background: var(--verde); border-color: var(--verde); color: #fff; }
+.pick.mal { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+.pick.res { outline: 2px dashed var(--verde); outline-offset: 2px; }
+.cuenta { font-size: 1.2rem; font-weight: 900; color: var(--amarillo); }
+
+/* Perfil */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.stat { background: var(--card2); border-radius: 14px; padding: 14px; text-align: center; }
+.stat b { display: block; font-size: 1.8rem; font-weight: 900; color: var(--amarillo); font-style: oblique 6deg; }
+.stat span { color: var(--muted); font-size: .85rem; }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: .78rem; font-weight: 800; }
+.badge.verde { background: var(--verde); color: #fff; }
+.badge.rojo { background: var(--rojo); color: #fff; }
+.badge.gris { background: var(--line); color: var(--muted); }
+.badge.amarillo { background: var(--amarillo); color: #000; }
+.texto-legal h2 { font-size: 1.15rem; margin-top: 22px; }
+.texto-legal p, .texto-legal li { color: var(--muted); }

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Panel — {marca}</title>
+  <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="/img/perfil.webp">
+  <style>
+    .fila-partido { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+    @media (max-width: 620px) { .fila-partido { grid-template-columns: 1fr 1fr; } }
+    .entrada { border-top: 1px solid var(--line); padding: 12px 0; }
+    .entrada.gana { background: rgba(255,221,0,.08); }
+    .alerta { color: #ffb3b6; font-size: .85rem; }
+    .mini-btn { padding: 6px 12px; font-size: .85rem; }
+    .lista-q a { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--txt); }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap" id="app" style="margin-top:20px"></main>
+  <div id="footer"></div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+  (async function () {
+    const esc = MC.esc, app = document.getElementById("app");
+    const $ = (id) => document.getElementById(id);
+    const pesos = (n) => "$" + Number(n).toLocaleString("es-MX");
+    const NOM = { L: "Local", E: "Empate", V: "Visita", C: "Cancelado" };
+    MC.montar("");
+
+    function login(msg) {
+      app.innerHTML = `<section class="card" style="max-width:420px;margin:0 auto">
+        <h2 class="titulo-sec">Panel del administrador</h2>
+        <form id="f" class="form"><input type="password" id="pw" placeholder="Contraseña del panel" autocomplete="current-password">
+        <div class="error" id="err" ${msg ? "" : "hidden"}>${esc(msg || "")}</div>
+        <button class="btn btn-pri">Entrar</button></form></section>`;
+      $("f").onsubmit = async (e) => {
+        e.preventDefault();
+        try { await MC.api("POST", "/api/admin/entrar", { password: $("pw").value }); inicio(); }
+        catch (err) { login(err.message); }
+      };
+    }
+
+    async function inicio() {
+      let d;
+      try { d = await MC.api("GET", "/api/admin/quinielas"); } catch (e) { return login(e.estado === 401 ? "" : e.message); }
+      const manana = new Date(Date.parse(d.hoy + "T12:00:00Z") + 86400000).toISOString().slice(0, 10);
+      const tieneHoy = d.quinielas.some((q) => q.fecha === d.hoy);
+      app.innerHTML = `
+        <section class="card">
+          <h2 class="titulo-sec">Quinielas</h2>
+          <div class="lista-q">${d.quinielas.map((q) => `<a href="#q${q.id}" data-id="${q.id}">
+            <span><b>${esc(q.fecha)}</b>${q.fecha === d.hoy ? ' <span class="badge amarillo">HOY</span>' : ""}</span>
+            <span>${q.entradas} quinielas · ${q.calificada ? '<span class="badge verde">Calificada</span>' : '<span class="badge gris">Sin resultados</span>'}</span></a>`).join("") || "<p>Aún no hay quinielas.</p>"}</div>
+          <div class="fila" style="margin-top:14px"><button class="btn btn-sec" id="ver-usuarios">Ver usuarios</button></div>
+        </section>
+        <section class="card">
+          <h2 class="titulo-sec">Publicar nueva quiniela</h2>
+          <form id="nueva" class="form">
+            <div class="fila-partido" style="grid-template-columns:1fr 1fr 1fr">
+              <div><label>Fecha</label><input type="date" id="n-fecha" value="${tieneHoy ? manana : d.hoy}"></div>
+              <div><label>Cierre (hora de tu celular)</label><input type="datetime-local" id="n-cierre"></div>
+              <div><label>Premio ($)</label><input type="number" id="n-premio" value="300" min="0"></div>
+            </div>
+            <p class="ayuda">El cierre debe ser antes de que empiece el primer partido.</p>
+            <div><label>Partidos (liga · local · visitante · hora)</label>
+            ${[1, 2, 3, 4, 5].map((i) => `<div class="fila-partido">
+              <input type="text" placeholder="Liga" id="p${i}-liga"><input type="text" placeholder="Local ${i}" id="p${i}-local">
+              <input type="text" placeholder="Visitante ${i}" id="p${i}-visita"><input type="text" placeholder="Ej. Sáb 19:00" id="p${i}-hora"></div>`).join("")}</div>
+            <div class="error" id="n-err" hidden></div>
+            <button class="btn btn-pri">Publicar quiniela</button>
+          </form>
+        </section>`;
+      document.querySelectorAll(".lista-q a").forEach((a) => a.onclick = (e) => { e.preventDefault(); detalle(a.dataset.id); });
+      $("ver-usuarios").onclick = usuarios;
+      $("nueva").onsubmit = async (e) => {
+        e.preventDefault();
+        const partidos = [1, 2, 3, 4, 5].map((i) => ({ liga: $(`p${i}-liga`).value, local: $(`p${i}-local`).value, visita: $(`p${i}-visita`).value, hora: $(`p${i}-hora`).value }))
+          .filter((p) => p.local || p.visita);
+        try {
+          if (!$("n-cierre").value) throw new Error("Pon la hora de cierre.");
+          const r = await MC.api("POST", "/api/admin/quinielas", { fecha: $("n-fecha").value, cierre: new Date($("n-cierre").value).toISOString(), premio: $("n-premio").value, partidos });
+          detalle(r.id);
+        } catch (err) { $("n-err").textContent = err.message; $("n-err").hidden = false; }
+      };
+    }
+
+    async function detalle(id) {
+      let d;
+      try { d = await MC.api("GET", `/api/admin/quinielas/${id}`); } catch (e) { return login(e.message); }
+      const q = d.quiniela, ganan = new Map(d.ganadores.map((g) => [g.entrada_id, g.monto]));
+      const conAlerta = d.entradas.filter((e) => e.alertas.length).length;
+      app.innerHTML = `
+        <p><a href="#" id="volver">← Volver</a></p>
+        <section class="card">
+          <h2 class="titulo-sec">Quiniela del ${esc(q.fecha)}</h2>
+          <p>Cierre: ${esc(new Date(q.cierre).toLocaleString("es-MX", { timeZone: "America/Mexico_City" }))} · Premio ${pesos(q.premio)} · ${d.entradas.length} quinielas</p>
+          <h3>Resultados</h3>
+          ${d.partidos.map((p) => `<div class="partido" style="grid-template-columns:1fr 140px">
+            <div>${p.liga ? `<small class="amarillo">${esc(p.liga)}</small><br>` : ""}<b>${esc(p.local)}</b> vs <b>${esc(p.visita)}</b></div>
+            <select id="r-${p.id}"><option value="">— Pendiente —</option>${["L", "E", "V", "C"].map((x) => `<option value="${x}" ${p.resultado === x ? "selected" : ""}>${x} · ${NOM[x]}</option>`).join("")}</select>
+          </div>`).join("")}
+          <div class="fila" style="margin-top:12px"><button class="btn btn-pri" id="guardar">Guardar resultados y calificar</button>
+          ${d.entradas.length ? "" : '<button class="btn btn-sec" id="borrar">Borrar quiniela</button>'}</div>
+          <p class="ayuda">Se califica sola cuando los 5 partidos tienen resultado. "C" = cancelado (cuenta como acierto para todos).</p>
+        </section>
+        <section class="card">
+          <h2 class="titulo-sec">Ganadores</h2>
+          ${q.calificada ? (d.ganadores.length ? `<p>${d.ganadores.length} ganador(es) · ${pesos(d.ganadores[0].monto)} cada uno. Pide su INE antes de pagar.</p>` : "<p>Nadie le atinó a todos.</p>") : "<p>Aún sin resultados.</p>"}
+        </section>
+        <section class="card">
+          <h2 class="titulo-sec">Quinielas recibidas</h2>
+          ${conAlerta ? `<p class="alerta">⚠️ ${conAlerta} con señales para revisar. Una misma IP puede ser la misma red celular: revisa antes de anular.</p>` : ""}
+          ${d.entradas.map((e) => `<div class="entrada ${ganan.has(e.id) ? "gana" : ""}">
+            <b>${esc(e.apodo)}</b> · ${esc(e.nombre)} · <a href="https://wa.me/52${esc(e.telefono)}" target="_blank" rel="noopener">${esc(e.telefono)}</a>
+            ${ganan.has(e.id) ? `<span class="badge amarillo">GANA ${pesos(ganan.get(e.id))}</span>` : ""}
+            ${e.anulada ? '<span class="badge rojo">ANULADA</span>' : ""}${e.bloqueado ? ' <span class="badge rojo">CUENTA BLOQUEADA</span>' : ""}
+            <br><small>${d.partidos.map((p) => `${esc(e.picks[p.id])}`).join(" · ")} ${e.aciertos !== null ? `· <b>${e.aciertos} aciertos</b>` : ""} · enviada ${esc(e.creado)} UTC · IP ${esc(e.ip)}</small>
+            ${e.alertas.map((a) => `<div class="alerta">⚠️ ${esc(a)}</div>`).join("")}
+            <div class="fila" style="justify-content:flex-start;margin-top:6px">
+              <button class="btn btn-sec mini-btn" data-acc="anular" data-id="${e.id}" data-v="${e.anulada ? 0 : 1}">${e.anulada ? "Quitar anulación" : "Anular"}</button>
+              ${ganan.has(e.id) ? `<button class="btn btn-sec mini-btn" data-acc="pagado" data-id="${e.id}" data-v="${e.pagado ? 0 : 1}">${e.pagado ? "✅ Pagado (deshacer)" : "Marcar pagado"}</button>
+              <a class="btn btn-wa mini-btn" target="_blank" rel="noopener" href="https://wa.me/52${esc(e.telefono)}?text=${encodeURIComponent(`¡Hola ${e.apodo}! 😎 Soy Don Gato: le atinaste a todos los partidos de la quiniela del ${q.fecha} y ganaste ${pesos(ganan.get(e.id))}. Para entregarte tu premio mándame foto de tu INE y la cuenta (CLABE) a tu nombre.`)}">Avisarle</a>` : ""}
+              <button class="btn btn-sec mini-btn" data-acc="bloquear" data-id="${e.usuario_id}" data-v="${e.bloqueado ? 0 : 1}">${e.bloqueado ? "Desbloquear cuenta" : "Bloquear cuenta"}</button>
+            </div></div>`).join("") || "<p>Todavía no llegan quinielas.</p>"}
+        </section>`;
+      $("volver").onclick = (ev) => { ev.preventDefault(); inicio(); };
+      $("guardar").onclick = async () => {
+        const resultados = Object.fromEntries(d.partidos.map((p) => [p.id, $(`r-${p.id}`).value]));
+        try { await MC.api("POST", `/api/admin/quinielas/${id}/resultados`, { resultados }); detalle(id); } catch (err) { alert(err.message); }
+      };
+      if ($("borrar")) $("borrar").onclick = async () => {
+        if (!confirm("¿Borrar esta quiniela?")) return;
+        try { await MC.api("DELETE", `/api/admin/quinielas/${id}`); inicio(); } catch (err) { alert(err.message); }
+      };
+      document.querySelectorAll("[data-acc]").forEach((b) => b.onclick = async () => {
+        const v = b.dataset.v === "1";
+        try {
+          if (b.dataset.acc === "bloquear") {
+            if (v && !confirm("¿Bloquear esta cuenta? Ya no podrá entrar ni jugar.")) return;
+            await MC.api("POST", `/api/admin/usuarios/${b.dataset.id}`, { bloqueado: v });
+          } else await MC.api("POST", `/api/admin/entradas/${b.dataset.id}`, { [b.dataset.acc === "anular" ? "anulada" : "pagado"]: v });
+          detalle(id);
+        } catch (err) { alert(err.message); }
+      });
+    }
+
+    async function usuarios() {
+      let d;
+      try { d = await MC.api("GET", "/api/admin/usuarios"); } catch (e) { return login(e.message); }
+      app.innerHTML = `<p><a href="#" id="volver">← Volver</a></p>
+        <section class="card"><h2 class="titulo-sec">Usuarios (${d.total})</h2>
+        <div style="overflow-x:auto"><table><thead><tr><th>Apodo</th><th>Nombre</th><th>Celular</th><th>Quinielas</th><th>Invitó</th><th>Alta</th><th>Revisar</th></tr></thead><tbody>
+        ${d.usuarios.map((u) => `<tr><td>${esc(u.apodo)}${u.bloqueado ? ' <span class="badge rojo">Bloq.</span>' : ""}</td><td>${esc(u.nombre)}</td>
+          <td><a href="https://wa.me/52${esc(u.telefono)}" target="_blank" rel="noopener">${esc(u.telefono)}</a></td><td>${u.quinielas}</td><td>${u.invitados}</td>
+          <td>${esc(u.creado.slice(0, 10))}</td><td>${u.cuentas_misma_ip > 1 ? `<span class="alerta">${u.cuentas_misma_ip} cuentas misma IP</span>` : ""}</td></tr>`).join("")}
+        </tbody></table></div></section>`;
+      $("volver").onclick = (ev) => { ev.preventDefault(); inicio(); };
+    }
+
+    inicio();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,474 @@
+// Servidor de Don Gato: sirve la página y la API de cuentas, quiniela, perfil y panel del administrador.
+// Sin dependencias externas: solo Node 22.
+const http = require("node:http");
+const fs = require("node:fs");
+const path = require("node:path");
+const crypto = require("node:crypto");
+const db = require("./db");
+
+const PORT = Number(process.env.PORT || 3000);
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const PUBLIC_DIR = path.join(__dirname, "..", "public");
+const ZONA = "America/Mexico_City";
+const DIAS_SESION = 60;
+
+if (ADMIN_PASSWORD.length < 10) console.warn("⚠️  ADMIN_PASSWORD no está definida o es muy corta: el panel de administrador estará desactivado.");
+
+// ------------------------------------------------------------------ utilidades
+const fechaMX = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(d);
+const diaUTC = (f) => { const [a, m, d] = f.split("-").map(Number); return Date.UTC(a, m - 1, d); };
+const sumarDias = (f, n) => new Date(diaUTC(f) + n * 86400000).toISOString().slice(0, 10);
+const lunesDe = (f) => { const dow = (new Date(diaUTC(f)).getUTCDay() + 6) % 7; return sumarDias(f, -dow); };
+
+function hashPassword(pass) {
+  const sal = crypto.randomBytes(16);
+  const h = crypto.scryptSync(pass, sal, 64);
+  return sal.toString("hex") + ":" + h.toString("hex");
+}
+function verificarPassword(pass, guardado) {
+  const [salHex, hHex] = String(guardado).split(":");
+  if (!salHex || !hHex) return false;
+  const h = crypto.scryptSync(pass, Buffer.from(salHex, "hex"), 64);
+  return crypto.timingSafeEqual(h, Buffer.from(hHex, "hex"));
+}
+function igualSeguro(a, b) {
+  const ha = crypto.createHash("sha256").update(String(a)).digest();
+  const hb = crypto.createHash("sha256").update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
+
+// Teléfono de México a 10 dígitos (acepta +52, 52, 521, espacios y guiones)
+function normalizarTelefono(t) {
+  let d = String(t || "").replace(/\D/g, "");
+  if (d.length === 13 && d.startsWith("521")) d = d.slice(3);
+  else if (d.length === 12 && d.startsWith("52")) d = d.slice(2);
+  return /^\d{10}$/.test(d) ? d : null;
+}
+const limpiar = (s, max) => String(s || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
+
+function codigoRef() {
+  const abc = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  for (;;) {
+    let c = "DG";
+    for (const b of crypto.randomBytes(5)) c += abc[b % abc.length];
+    if (!db.prepare("SELECT 1 FROM usuarios WHERE ref_code = ?").get(c)) return c;
+  }
+}
+
+// ------------------------------------------------------------------ límites de intentos (contra fuerza bruta)
+const intentos = new Map();
+function limitar(clave, max, minutos) {
+  const ahora = Date.now(), ventana = minutos * 60000;
+  const lista = (intentos.get(clave) || []).filter((t) => ahora - t < ventana);
+  lista.push(ahora);
+  intentos.set(clave, lista);
+  return lista.length > max;
+}
+setInterval(() => { const ahora = Date.now(); for (const [k, v] of intentos) if (v.every((t) => ahora - t > 3600000)) intentos.delete(k); }, 600000).unref();
+
+// ------------------------------------------------------------------ peticiones
+function ipDe(req) {
+  const remota = req.socket.remoteAddress || "";
+  const local = remota === "127.0.0.1" || remota === "::1" || remota === "::ffff:127.0.0.1";
+  const xff = req.headers["x-forwarded-for"];
+  return (local && xff ? String(xff).split(",")[0].trim() : remota).slice(0, 64);
+}
+function cookies(req) {
+  const out = {};
+  for (const par of String(req.headers.cookie || "").split(";")) {
+    const i = par.indexOf("=");
+    if (i > 0) out[par.slice(0, i).trim()] = decodeURIComponent(par.slice(i + 1).trim());
+  }
+  return out;
+}
+function leerJSON(req) {
+  return new Promise((resolve, reject) => {
+    if (!String(req.headers["content-type"] || "").startsWith("application/json")) return reject(new ErrorHTTP(415, "Formato no válido."));
+    let datos = "";
+    req.on("data", (c) => { datos += c; if (datos.length > 20000) { reject(new ErrorHTTP(413, "Demasiado grande.")); req.destroy(); } });
+    req.on("end", () => { try { resolve(datos ? JSON.parse(datos) : {}); } catch { reject(new ErrorHTTP(400, "JSON no válido.")); } });
+    req.on("error", reject);
+  });
+}
+class ErrorHTTP extends Error { constructor(estado, msg) { super(msg); this.estado = estado; } }
+const falla = (estado, msg) => { throw new ErrorHTTP(estado, msg); };
+
+function responder(res, estado, cuerpo, extraHeaders = {}) {
+  res.writeHead(estado, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...extraHeaders });
+  res.end(JSON.stringify(cuerpo));
+}
+function cookieSesion(req, token, dias) {
+  const seguro = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
+  return `sid=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.round(dias * 86400)}${seguro}`;
+}
+function crearSesion(usuarioId, esAdmin, dias) {
+  const token = crypto.randomBytes(32).toString("hex");
+  const expira = new Date(Date.now() + dias * 86400000).toISOString();
+  db.prepare("INSERT INTO sesiones (token, usuario_id, es_admin, expira) VALUES (?, ?, ?, ?)").run(token, usuarioId, esAdmin ? 1 : 0, expira);
+  return token;
+}
+function sesionDe(req) {
+  const token = cookies(req).sid;
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
+  const s = db.prepare("SELECT * FROM sesiones WHERE token = ?").get(token);
+  if (!s) return null;
+  if (s.expira < new Date().toISOString()) { db.prepare("DELETE FROM sesiones WHERE token = ?").run(token); return null; }
+  return s;
+}
+function usuarioDe(req) {
+  const s = sesionDe(req);
+  if (!s || !s.usuario_id) return null;
+  const u = db.prepare("SELECT * FROM usuarios WHERE id = ?").get(s.usuario_id);
+  return u && !u.bloqueado ? u : null;
+}
+const requiereUsuario = (req) => usuarioDe(req) || falla(401, "Necesitas iniciar sesión.");
+function requiereAdmin(req) { const s = sesionDe(req); if (!s || !s.es_admin) falla(401, "Solo el administrador."); }
+
+// ------------------------------------------------------------------ lógica de la quiniela
+function partidosDe(qid) { return db.prepare("SELECT id, orden, liga, local, visita, hora, resultado FROM partidos WHERE quiniela_id = ? ORDER BY orden").all(qid); }
+
+function calificar(qid) {
+  const ps = partidosDe(qid);
+  if (!ps.length || ps.some((p) => !p.resultado)) {
+    db.prepare("UPDATE quinielas SET calificada = 0 WHERE id = ?").run(qid);
+    db.prepare("UPDATE entradas SET aciertos = NULL WHERE quiniela_id = ?").run(qid);
+    return false;
+  }
+  const upd = db.prepare("UPDATE entradas SET aciertos = ? WHERE id = ?");
+  for (const e of db.prepare("SELECT id, picks FROM entradas WHERE quiniela_id = ?").all(qid)) {
+    const picks = JSON.parse(e.picks);
+    upd.run(ps.filter((p) => p.resultado === "C" || picks[p.id] === p.resultado).length, e.id);
+  }
+  db.prepare("UPDATE quinielas SET calificada = 1 WHERE id = ?").run(qid);
+  return true;
+}
+
+function ganadoresDe(q) {
+  if (!q.calificada) return [];
+  const total = db.prepare("SELECT COUNT(*) n FROM partidos WHERE quiniela_id = ?").get(q.id).n;
+  const g = db.prepare(`SELECT e.id, e.usuario_id, e.pagado, u.apodo, u.nombre, u.telefono FROM entradas e JOIN usuarios u ON u.id = e.usuario_id
+                        WHERE e.quiniela_id = ? AND e.anulada = 0 AND e.aciertos = ?`).all(q.id, total);
+  const monto = g.length ? Math.floor(q.premio / g.length) : 0;
+  return g.map((x) => ({ ...x, monto }));
+}
+
+function rachas(usuarioId) {
+  const fechas = db.prepare(`SELECT DISTINCT q.fecha FROM entradas e JOIN quinielas q ON q.id = e.quiniela_id
+                             WHERE e.usuario_id = ? AND e.anulada = 0 ORDER BY q.fecha`).all(usuarioId).map((r) => r.fecha);
+  let mejor = 0, run = 0, prev = null;
+  for (const f of fechas) { run = prev && sumarDias(prev, 1) === f ? run + 1 : 1; mejor = Math.max(mejor, run); prev = f; }
+  const hoy = fechaMX();
+  const ultima = fechas[fechas.length - 1];
+  const actual = ultima === hoy || ultima === sumarDias(hoy, -1) ? run : 0;
+  return { actual, mejor };
+}
+
+function quinielaPublica(q, usuario) {
+  const ps = partidosDe(q.id);
+  const out = {
+    id: q.id, fecha: q.fecha, cierre: q.cierre, premio: q.premio, calificada: !!q.calificada,
+    cerrada: Date.now() >= Date.parse(q.cierre),
+    participantes: db.prepare("SELECT COUNT(*) n FROM entradas WHERE quiniela_id = ? AND anulada = 0").get(q.id).n,
+    partidos: ps.map((p) => ({ id: p.id, liga: p.liga, local: p.local, visita: p.visita, hora: p.hora, resultado: q.calificada ? p.resultado : null })),
+  };
+  if (usuario) {
+    const e = db.prepare("SELECT picks, aciertos, anulada FROM entradas WHERE quiniela_id = ? AND usuario_id = ?").get(q.id, usuario.id);
+    out.mia = e ? { picks: JSON.parse(e.picks), aciertos: e.aciertos, anulada: !!e.anulada } : null;
+  }
+  if (q.calificada) out.ganadores = ganadoresDe(q).map((g) => ({ apodo: g.apodo, monto: g.monto }));
+  return out;
+}
+
+// ------------------------------------------------------------------ rutas de la API
+const rutas = [];
+const ruta = (metodo, patron, fn) => rutas.push({ metodo, re: new RegExp("^" + patron.replace(/:(\w+)/g, "(?<$1>[^/]+)") + "$"), fn });
+
+// --- cuentas
+ruta("POST", "/api/registro", async (req, res) => {
+  const ip = ipDe(req);
+  if (limitar("reg:" + ip, 5, 60)) falla(429, "Demasiados intentos. Espera un rato.");
+  const b = await leerJSON(req);
+  const telefono = normalizarTelefono(b.telefono);
+  const nombre = limpiar(b.nombre, 80), apodo = limpiar(b.apodo, 24), pass = String(b.password || "");
+  if (!telefono) falla(400, "Escribe un celular válido de 10 dígitos.");
+  if (nombre.split(/\s+/).length < 2) falla(400, "Escribe tu nombre completo, como aparece en tu INE.");
+  if (apodo.length < 2) falla(400, "Escribe un apodo de al menos 2 letras.");
+  if (pass.length < 8) falla(400, "La contraseña debe tener al menos 8 caracteres.");
+  if (b.mayor !== true || b.acepta !== true) falla(400, "Debes ser mayor de 18 años y aceptar las bases y el aviso de privacidad.");
+  if (db.prepare("SELECT 1 FROM usuarios WHERE telefono = ?").get(telefono)) falla(409, "Ese celular ya tiene cuenta. Inicia sesión.");
+  const ref = limpiar(b.ref, 12).toUpperCase();
+  const invitadoPor = ref && db.prepare("SELECT 1 FROM usuarios WHERE ref_code = ?").get(ref) ? ref : null;
+  const r = db.prepare(`INSERT INTO usuarios (telefono, nombre, apodo, pass_hash, ref_code, invitado_por, ip, agente)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(telefono, nombre, apodo, hashPassword(pass), codigoRef(), invitadoPor, ip, limpiar(req.headers["user-agent"], 300));
+  const token = crearSesion(Number(r.lastInsertRowid), false, DIAS_SESION);
+  responder(res, 201, { ok: true }, { "Set-Cookie": cookieSesion(req, token, DIAS_SESION) });
+});
+
+ruta("POST", "/api/entrar", async (req, res) => {
+  const ip = ipDe(req);
+  const b = await leerJSON(req);
+  const telefono = normalizarTelefono(b.telefono);
+  if (limitar("login:" + ip, 15, 15) || (telefono && limitar("login-tel:" + telefono, 8, 15))) falla(429, "Demasiados intentos. Espera 15 minutos.");
+  const u = telefono && db.prepare("SELECT * FROM usuarios WHERE telefono = ?").get(telefono);
+  if (!u || !verificarPassword(String(b.password || ""), u.pass_hash)) falla(401, "Celular o contraseña incorrectos.");
+  if (u.bloqueado) falla(403, "Tu cuenta está suspendida. Escríbenos por WhatsApp.");
+  const token = crearSesion(u.id, false, DIAS_SESION);
+  responder(res, 200, { ok: true }, { "Set-Cookie": cookieSesion(req, token, DIAS_SESION) });
+});
+
+ruta("POST", "/api/salir", async (req, res) => {
+  const s = sesionDe(req);
+  if (s) db.prepare("DELETE FROM sesiones WHERE token = ?").run(s.token);
+  responder(res, 200, { ok: true }, { "Set-Cookie": cookieSesion(req, "", 0) });
+});
+
+ruta("GET", "/api/yo", async (req, res) => {
+  const u = usuarioDe(req);
+  responder(res, 200, u ? { usuario: { apodo: u.apodo, ref_code: u.ref_code } } : { usuario: null });
+});
+
+// --- perfil
+ruta("GET", "/api/perfil", async (req, res) => {
+  const u = requiereUsuario(req);
+  const hist = db.prepare(`SELECT q.id, q.fecha, q.premio, q.calificada, e.aciertos, e.anulada, e.pagado,
+                             (SELECT COUNT(*) FROM partidos p WHERE p.quiniela_id = q.id) total
+                           FROM entradas e JOIN quinielas q ON q.id = e.quiniela_id
+                           WHERE e.usuario_id = ? ORDER BY q.fecha DESC LIMIT 60`).all(u.id);
+  let premios = 0, perfectas = 0, aciertos = 0;
+  for (const h of hist) {
+    if (!h.calificada || h.anulada) continue;
+    aciertos += h.aciertos;
+    if (h.aciertos === h.total) {
+      perfectas++;
+      h.gano = ganadoresDe({ id: h.id, premio: h.premio, calificada: 1 }).find((g) => g.usuario_id === u.id)?.monto || 0;
+      premios += h.gano;
+    }
+  }
+  const trivia = db.prepare("SELECT COUNT(*) dias, COALESCE(SUM(aciertos),0) aciertos, COALESCE(SUM(total),0) total FROM trivia WHERE usuario_id = ?").get(u.id);
+  const triviaHoy = db.prepare("SELECT aciertos, total FROM trivia WHERE usuario_id = ? AND fecha = ?").get(u.id, fechaMX());
+  responder(res, 200, {
+    apodo: u.apodo, nombre: u.nombre, telefono: u.telefono.replace(/^(\d{3})\d{4}(\d{3})$/, "$1 **** $2"),
+    desde: u.creado.slice(0, 10), ref_code: u.ref_code,
+    invitados: db.prepare("SELECT COUNT(*) n FROM usuarios WHERE invitado_por = ?").get(u.ref_code).n,
+    quinielas: hist.length, perfectas, aciertos, premios, racha: rachas(u.id),
+    historial: hist.slice(0, 30).map((h) => ({ fecha: h.fecha, aciertos: h.calificada ? h.aciertos : null, total: h.total, anulada: !!h.anulada, gano: h.gano || 0, pagado: !!h.pagado })),
+    trivia: { ...trivia, hoy: triviaHoy || null },
+  });
+});
+
+// --- quiniela
+ruta("GET", "/api/quiniela", async (req, res) => {
+  const u = usuarioDe(req);
+  const hoy = fechaMX();
+  const q = db.prepare("SELECT * FROM quinielas WHERE fecha = ?").get(hoy)
+         || db.prepare("SELECT * FROM quinielas WHERE fecha > ? ORDER BY fecha LIMIT 1").get(hoy);
+  responder(res, 200, { hoy, quiniela: q ? quinielaPublica(q, u) : null, sesion: !!u });
+});
+
+ruta("POST", "/api/quiniela/:id/enviar", async (req, res, p) => {
+  const u = requiereUsuario(req);
+  const b = await leerJSON(req);
+  const q = db.prepare("SELECT * FROM quinielas WHERE id = ?").get(Number(p.id)) || falla(404, "Quiniela no encontrada.");
+  if (Date.now() >= Date.parse(q.cierre)) falla(400, "La quiniela ya cerró.");
+  if (db.prepare("SELECT 1 FROM entradas WHERE quiniela_id = ? AND usuario_id = ?").get(q.id, u.id)) falla(409, "Ya enviaste tu quiniela de hoy. Solo se permite una por día.");
+  const ps = partidosDe(q.id);
+  const picks = {};
+  for (const pt of ps) {
+    const v = b.picks && b.picks[pt.id];
+    if (!["L", "E", "V"].includes(v)) falla(400, "Elige un resultado para cada partido.");
+    picks[pt.id] = v;
+  }
+  db.prepare("INSERT INTO entradas (quiniela_id, usuario_id, picks, ip, agente) VALUES (?, ?, ?, ?, ?)")
+    .run(q.id, u.id, JSON.stringify(picks), ipDe(req), limpiar(req.headers["user-agent"], 300));
+  responder(res, 201, { ok: true });
+});
+
+ruta("GET", "/api/resultados", async (req, res) => {
+  const qs = db.prepare("SELECT * FROM quinielas WHERE calificada = 1 ORDER BY fecha DESC LIMIT 7").all();
+  responder(res, 200, { resultados: qs.map((q) => quinielaPublica(q, null)) });
+});
+
+ruta("GET", "/api/tabla", async (req, res) => {
+  const lunes = lunesDe(fechaMX());
+  const filas = db.prepare(`SELECT u.apodo, SUM(e.aciertos) puntos, COUNT(*) jugadas FROM entradas e
+                            JOIN quinielas q ON q.id = e.quiniela_id JOIN usuarios u ON u.id = e.usuario_id
+                            WHERE q.calificada = 1 AND e.anulada = 0 AND q.fecha >= ? AND u.bloqueado = 0
+                            GROUP BY u.id ORDER BY puntos DESC, jugadas ASC LIMIT 20`).all(lunes);
+  responder(res, 200, { desde: lunes, tabla: filas });
+});
+
+// --- trivia (guarda el resultado del día si hay sesión)
+ruta("POST", "/api/trivia", async (req, res) => {
+  const u = requiereUsuario(req);
+  const b = await leerJSON(req);
+  const total = Number(b.total), aciertos = Number(b.aciertos);
+  if (!Number.isInteger(total) || total < 1 || total > 10 || !Number.isInteger(aciertos) || aciertos < 0 || aciertos > total) falla(400, "Datos no válidos.");
+  db.prepare("INSERT OR IGNORE INTO trivia (usuario_id, fecha, aciertos, total) VALUES (?, ?, ?, ?)").run(u.id, fechaMX(), aciertos, total);
+  responder(res, 200, { ok: true });
+});
+
+// --- administrador
+ruta("POST", "/api/admin/entrar", async (req, res) => {
+  if (limitar("admin:" + ipDe(req), 5, 15)) falla(429, "Demasiados intentos. Espera 15 minutos.");
+  const b = await leerJSON(req);
+  if (ADMIN_PASSWORD.length < 10 || !igualSeguro(String(b.password || ""), ADMIN_PASSWORD)) falla(401, "Contraseña incorrecta.");
+  const token = crearSesion(null, true, 1);
+  responder(res, 200, { ok: true }, { "Set-Cookie": cookieSesion(req, token, 1) });
+});
+
+ruta("GET", "/api/admin/quinielas", async (req, res) => {
+  requiereAdmin(req);
+  const qs = db.prepare(`SELECT q.*, (SELECT COUNT(*) FROM entradas e WHERE e.quiniela_id = q.id) entradas
+                         FROM quinielas q ORDER BY fecha DESC LIMIT 30`).all();
+  responder(res, 200, { hoy: fechaMX(), quinielas: qs });
+});
+
+ruta("POST", "/api/admin/quinielas", async (req, res) => {
+  requiereAdmin(req);
+  const b = await leerJSON(req);
+  const fecha = String(b.fecha || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) falla(400, "Fecha no válida.");
+  if (Number.isNaN(Date.parse(b.cierre))) falla(400, "Hora de cierre no válida.");
+  const premio = Math.max(0, Math.round(Number(b.premio) || 0));
+  const ps = Array.isArray(b.partidos) ? b.partidos : [];
+  if (ps.length < 1 || ps.length > 10) falla(400, "Agrega entre 1 y 10 partidos.");
+  for (const x of ps) if (!limpiar(x.local, 40) || !limpiar(x.visita, 40)) falla(400, "Cada partido necesita equipo local y visitante.");
+  if (db.prepare("SELECT 1 FROM quinielas WHERE fecha = ?").get(fecha)) falla(409, "Ya existe una quiniela para esa fecha.");
+  const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio) VALUES (?, ?, ?)").run(fecha, new Date(b.cierre).toISOString(), premio);
+  const ins = db.prepare("INSERT INTO partidos (quiniela_id, orden, liga, local, visita, hora) VALUES (?, ?, ?, ?, ?, ?)");
+  ps.forEach((x, i) => ins.run(r.lastInsertRowid, i + 1, limpiar(x.liga, 30), limpiar(x.local, 40), limpiar(x.visita, 40), limpiar(x.hora, 30)));
+  responder(res, 201, { ok: true, id: Number(r.lastInsertRowid) });
+});
+
+ruta("DELETE", "/api/admin/quinielas/:id", async (req, res, p) => {
+  requiereAdmin(req);
+  const n = db.prepare("SELECT COUNT(*) n FROM entradas WHERE quiniela_id = ?").get(Number(p.id)).n;
+  if (n > 0) falla(409, "No se puede borrar: ya tiene quinielas enviadas.");
+  db.prepare("DELETE FROM quinielas WHERE id = ?").run(Number(p.id));
+  responder(res, 200, { ok: true });
+});
+
+ruta("GET", "/api/admin/quinielas/:id", async (req, res, p) => {
+  requiereAdmin(req);
+  const q = db.prepare("SELECT * FROM quinielas WHERE id = ?").get(Number(p.id)) || falla(404, "No existe.");
+  const entradas = db.prepare(`SELECT e.id, e.picks, e.aciertos, e.ip, e.agente, e.anulada, e.pagado, e.creado,
+                                 u.id usuario_id, u.apodo, u.nombre, u.telefono, u.ip ip_registro, u.bloqueado
+                               FROM entradas e JOIN usuarios u ON u.id = e.usuario_id WHERE e.quiniela_id = ? ORDER BY e.creado`).all(q.id);
+  // Señales para revisar (no son prueba): misma IP o mismo aparato+IP en varias quinielas del día, o varias cuentas registradas desde la misma IP
+  const porIp = {}, porAparato = {};
+  for (const e of entradas) { porIp[e.ip] = (porIp[e.ip] || 0) + 1; const k = e.ip + "|" + e.agente; porAparato[k] = (porAparato[k] || 0) + 1; }
+  const cuentasIp = db.prepare("SELECT COUNT(*) n FROM usuarios WHERE ip = ?");
+  for (const e of entradas) {
+    e.picks = JSON.parse(e.picks);
+    e.alertas = [];
+    if (porAparato[e.ip + "|" + e.agente] > 1) e.alertas.push(`Mismo aparato e IP que otras ${porAparato[e.ip + "|" + e.agente] - 1} quiniela(s) de hoy`);
+    else if (porIp[e.ip] > 1) e.alertas.push(`Misma IP que otras ${porIp[e.ip] - 1} quiniela(s) de hoy (puede ser la misma red celular)`);
+    const n = e.ip_registro ? cuentasIp.get(e.ip_registro).n : 0;
+    if (n > 1) e.alertas.push(`${n} cuentas creadas desde la misma IP`);
+  }
+  const ganadores = ganadoresDe(q).map((g) => ({ entrada_id: g.id, monto: g.monto }));
+  responder(res, 200, { quiniela: q, partidos: partidosDe(q.id), entradas, ganadores });
+});
+
+ruta("POST", "/api/admin/quinielas/:id/resultados", async (req, res, p) => {
+  requiereAdmin(req);
+  const b = await leerJSON(req);
+  const qid = Number(p.id);
+  const q = db.prepare("SELECT cierre FROM quinielas WHERE id = ?").get(qid) || falla(404, "No existe.");
+  if (Date.now() < Date.parse(q.cierre)) falla(400, "La quiniela sigue abierta. Mete los resultados después de la hora de cierre.");
+  const upd = db.prepare("UPDATE partidos SET resultado = ? WHERE id = ? AND quiniela_id = ?");
+  for (const pt of partidosDe(qid)) {
+    const v = b.resultados && b.resultados[pt.id];
+    upd.run(["L", "E", "V", "C"].includes(v) ? v : null, pt.id, qid);
+  }
+  responder(res, 200, { ok: true, calificada: calificar(qid) });
+});
+
+ruta("POST", "/api/admin/entradas/:id", async (req, res, p) => {
+  requiereAdmin(req);
+  const b = await leerJSON(req);
+  const e = db.prepare("SELECT * FROM entradas WHERE id = ?").get(Number(p.id)) || falla(404, "No existe.");
+  if (typeof b.anulada === "boolean") db.prepare("UPDATE entradas SET anulada = ? WHERE id = ?").run(b.anulada ? 1 : 0, e.id);
+  if (typeof b.pagado === "boolean") db.prepare("UPDATE entradas SET pagado = ? WHERE id = ?").run(b.pagado ? 1 : 0, e.id);
+  responder(res, 200, { ok: true });
+});
+
+ruta("POST", "/api/admin/usuarios/:id", async (req, res, p) => {
+  requiereAdmin(req);
+  const b = await leerJSON(req);
+  if (typeof b.bloqueado === "boolean") {
+    db.prepare("UPDATE usuarios SET bloqueado = ? WHERE id = ?").run(b.bloqueado ? 1 : 0, Number(p.id));
+    if (b.bloqueado) db.prepare("DELETE FROM sesiones WHERE usuario_id = ?").run(Number(p.id));
+  }
+  responder(res, 200, { ok: true });
+});
+
+ruta("GET", "/api/admin/usuarios", async (req, res) => {
+  requiereAdmin(req);
+  const usuarios = db.prepare(`SELECT u.id, u.apodo, u.nombre, u.telefono, u.ip, u.invitado_por, u.ref_code, u.bloqueado, u.creado,
+                                 (SELECT COUNT(*) FROM usuarios x WHERE x.ip = u.ip) cuentas_misma_ip,
+                                 (SELECT COUNT(*) FROM entradas e WHERE e.usuario_id = u.id) quinielas,
+                                 (SELECT COUNT(*) FROM usuarios x WHERE x.invitado_por = u.ref_code) invitados
+                               FROM usuarios u ORDER BY u.creado DESC LIMIT 500`).all();
+  responder(res, 200, { total: db.prepare("SELECT COUNT(*) n FROM usuarios").get().n, usuarios });
+});
+
+// ------------------------------------------------------------------ archivos de la página
+const TIPOS = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+  ".webp": "image/webp", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ttf": "font/ttf", ".txt": "text/plain; charset=utf-8", ".ico": "image/x-icon" };
+
+function servirArchivo(req, res, ruta) {
+  let rel = decodeURIComponent(ruta.split("?")[0]);
+  if (rel.endsWith("/")) rel += "index.html";
+  const archivo = path.normalize(path.join(PUBLIC_DIR, rel));
+  if (!archivo.startsWith(PUBLIC_DIR + path.sep)) { res.writeHead(403); return res.end(); }
+  fs.stat(archivo, (err, st) => {
+    let final = archivo;
+    if (err || !st.isFile()) {
+      if (!path.extname(archivo) && fs.existsSync(archivo + ".html")) final = archivo + ".html"; // /perfil -> perfil.html
+      else { res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" }); return res.end('<meta charset="utf-8"><p>Página no encontrada. <a href="/">Volver al inicio</a></p>'); }
+    }
+    const ext = path.extname(final);
+    res.writeHead(200, {
+      "Content-Type": TIPOS[ext] || "application/octet-stream",
+      "Cache-Control": [".webp", ".png", ".jpg", ".ttf"].includes(ext) ? "public, max-age=604800" : "no-cache",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+    });
+    if (req.method === "HEAD") return res.end();
+    fs.createReadStream(final).pipe(res);
+  });
+}
+
+// ------------------------------------------------------------------ servidor
+const servidor = http.createServer(async (req, res) => {
+  const url = req.url || "/";
+  if (url.startsWith("/api/")) {
+    const ruta = url.split("?")[0];
+    for (const r of rutas) {
+      const m = r.metodo === req.method && ruta.match(r.re);
+      if (!m) continue;
+      try { return await r.fn(req, res, m.groups || {}); }
+      catch (e) {
+        if (e instanceof ErrorHTTP) return responder(res, e.estado, { error: e.message });
+        console.error(e);
+        return responder(res, 500, { error: "Algo falló. Intenta de nuevo." });
+      }
+    }
+    return responder(res, 404, { error: "No encontrado." });
+  }
+  if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405); return res.end(); }
+  try { servirArchivo(req, res, url); }
+  catch { res.writeHead(400); res.end(); } // dirección mal formada
+});
+
+// Ningún error inesperado debe tumbar el servidor
+process.on("uncaughtException", (e) => console.error("Error no controlado:", e));
+process.on("unhandledRejection", (e) => console.error("Promesa rechazada:", e));
+
+// Limpieza de sesiones vencidas cada hora
+setInterval(() => db.prepare("DELETE FROM sesiones WHERE expira < ?").run(new Date().toISOString()), 3600000).unref();
+
+servidor.listen(PORT, "127.0.0.1", () => console.log(`Don Gato escuchando en http://127.0.0.1:${PORT}`));
+module.exports = { servidor, normalizarTelefono, rachas, lunesDe };

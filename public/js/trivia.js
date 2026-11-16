@@ -4,7 +4,7 @@
   const C = window.CONFIG, F = window.FRASES;
   const N = 5;
   const INICIO = Date.UTC(2026, 10, 1); // 1 nov 2026 = trivia #1
-  MC.montar("trivia");
+  const sesion = MC.montar("trivia");
 
   // Día según la hora del centro de México
   const hoyMX = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date()); // AAAA-MM-DD
@@ -86,7 +86,7 @@
     pintarProgreso(-1);
     const aciertos = preguntas.filter((p, i) => estado.respuestas[i] === p.correcta).length;
     const cuadros = preguntas.map((p, i) => estado.respuestas[i] === p.correcta ? "🟩" : "🟥").join("");
-    const link = MC.urlConMiRef("trivia.html");
+    const link = MC.urlConMiRef("/trivia");
     const texto = `😎 Trivia de ${C.marca} #${numero}\n${aciertos}/${preguntas.length} ${cuadros}\n¿Sabes o nomás opinas? ${link}`;
     $("contenido").innerHTML = `
       <div class="resultado">
@@ -99,9 +99,16 @@
           <button class="btn btn-wa" id="wa">Retar a un compa por WhatsApp</button>
           <button class="btn btn-sec" id="copiar">Copiar resultado</button>
         </div>
-        <p style="color:var(--muted);margin-top:18px">Mañana viene otra, y más difícil. Mientras, ¿ya llenaste la <a href="quiniela.html">quiniela</a>?</p>
+        <p style="color:var(--muted);margin-top:18px">Mañana viene otra, y más difícil. Mientras, ¿ya llenaste la <a href="/quiniela">quiniela</a>?</p>
       </div>`;
     $("wa").onclick = () => MC.compartirWhatsApp(texto);
+    // Si hay cuenta, el resultado se guarda en el perfil; si no, se invita a crearla
+    sesion.then((u) => {
+      if (u) return MC.api("POST", "/api/trivia", { aciertos, total: preguntas.length }).catch(() => {});
+      const aviso = document.createElement("p");
+      aviso.innerHTML = '<a href="/entrar?nueva=1&volver=/trivia">Crea tu cuenta gratis</a> para guardar tus resultados y jugar la quiniela con premio.';
+      $("contenido").querySelector(".resultado").appendChild(aviso);
+    });
     $("copiar").onclick = async (e) => { try { await navigator.clipboard.writeText(texto); e.target.textContent = "¡Copiado!"; } catch (_) {} };
   }
 

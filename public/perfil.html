@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi perfil — {marca}</title>
+  <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="/img/perfil.webp">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap" id="contenido">
+    <p style="margin-top:20px;color:var(--muted)">Cargando…</p>
+  </main>
+  <div id="footer"></div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/common.js"></script>
+  <script>
+  (async function () {
+    const esc = MC.esc, $ = (id) => document.getElementById(id);
+    const usuario = await MC.montar("perfil");
+    if (!usuario) return location.replace("/entrar?volver=/perfil");
+    let p;
+    try { p = await MC.api("GET", "/api/perfil"); }
+    catch (e) { $("contenido").innerHTML = `<div class="error" style="margin-top:20px">${esc(e.message)}</div>`; return; }
+    const pesos = (n) => "$" + Number(n).toLocaleString("es-MX");
+    const fecha = (f) => new Date(f + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+    const link = MC.urlConMiRef("/");
+
+    $("contenido").innerHTML = `
+      <section class="card" style="margin-top:20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <img src="/img/perfil.webp" alt="" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--amarillo)">
+        <div style="flex:1;min-width:180px">
+          <h2 class="titulo-sec" style="margin:0">${esc(p.apodo)}</h2>
+          <p style="margin:0">${esc(p.nombre)} · ${esc(p.telefono)}<br>Jugando desde ${esc(fecha(p.desde))}</p>
+        </div>
+        <button class="btn btn-sec" id="salir">Cerrar sesión</button>
+      </section>
+
+      <section class="card">
+        <h2 class="titulo-sec">Tus números</h2>
+        <div class="stats">
+          <div class="stat"><b>${p.racha.actual}🔥</b><span>Racha actual (días)</span></div>
+          <div class="stat"><b>${p.racha.mejor}</b><span>Mejor racha</span></div>
+          <div class="stat"><b>${p.quinielas}</b><span>Quinielas jugadas</span></div>
+          <div class="stat"><b>${p.aciertos}</b><span>Aciertos totales</span></div>
+          <div class="stat"><b>${p.perfectas}</b><span>Quinielas perfectas</span></div>
+          <div class="stat"><b>${pesos(p.premios)}</b><span>Premios ganados</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="titulo-sec">Historial de quinielas</h2>
+        ${p.historial.length ? `<table><thead><tr><th>Fecha</th><th>Aciertos</th><th style="text-align:right">Premio</th></tr></thead><tbody>
+          ${p.historial.map((h) => `<tr>
+            <td>${esc(fecha(h.fecha))}</td>
+            <td>${h.anulada ? '<span class="badge rojo">Anulada</span>' : h.aciertos === null ? '<span class="badge gris">Esperando</span>'
+              : `<span class="badge ${h.aciertos === h.total ? "verde" : "gris"}">${h.aciertos} / ${h.total}</span>`}</td>
+            <td class="num">${h.gano ? `${pesos(h.gano)} ${h.pagado ? '<span class="badge verde">Pagado</span>' : '<span class="badge amarillo">Por entregar</span>'}` : "—"}</td>
+          </tr>`).join("")}</tbody></table>`
+        : `<p>Todavía no juegas ninguna quiniela.</p><a class="btn btn-pri" href="/quiniela">Jugar la de hoy</a>`}
+      </section>
+
+      <section class="card">
+        <h2 class="titulo-sec">Trivia diaria</h2>
+        <div class="stats">
+          <div class="stat"><b>${p.trivia.dias}</b><span>Días jugados</span></div>
+          <div class="stat"><b>${p.trivia.total ? Math.round(p.trivia.aciertos / p.trivia.total * 100) : 0}%</b><span>Aciertos</span></div>
+          <div class="stat"><b>${p.trivia.hoy ? `${p.trivia.hoy.aciertos}/${p.trivia.hoy.total}` : "—"}</b><span>Hoy</span></div>
+        </div>
+        ${p.trivia.hoy ? "" : `<div class="fila" style="margin-top:14px"><a class="btn btn-pri" href="/trivia">Jugar la trivia de hoy</a></div>`}
+      </section>
+
+      <section class="card">
+        <h2 class="titulo-sec">Invita a tus compas</h2>
+        <p>Has invitado a <b style="color:var(--amarillo)">${p.invitados}</b> persona${p.invitados === 1 ? "" : "s"}. Comparte tu enlace:</p>
+        <div class="ref-box">
+          <input type="text" id="mi-link" readonly value="${esc(link)}">
+          <button class="btn btn-sec" id="copiar">Copiar</button>
+          <button class="btn btn-wa" id="compartir">WhatsApp</button>
+        </div>
+      </section>`;
+
+    $("salir").onclick = async () => { try { await MC.api("POST", "/api/salir", {}); } catch (e) {} location.href = "/"; };
+    $("copiar").onclick = async (e) => { try { await navigator.clipboard.writeText(link); e.target.textContent = "¡Copiado!"; } catch (_) { $("mi-link").select(); } };
+    $("compartir").onclick = () => MC.compartirWhatsApp(`😎 Juega gratis la quiniela de ${CONFIG.marca}: atínale a los 5 partidos y gánate $300. Entra aquí: ${link}`);
+  })();
+  </script>
+</body>
+</html>

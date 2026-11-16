@@ -1,0 +1,11 @@
+{
+  "name": "dongato",
+  "private": true,
+  "description": "Página de Don Gato: trivia diaria, quiniela con premio, cuentas y panel del administrador",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

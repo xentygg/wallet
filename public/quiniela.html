@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quiniela diaria — {marca}</title>
+  <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="/img/perfil.webp">
+</head>
+<body>
+  <div id="header"></div>
+  <main class="wrap">
+    <section class="card" style="margin-top:20px" id="q-card">
+      <p style="color:var(--muted)">Cargando quiniela…</p>
+    </section>
+
+    <section class="card">
+      <h2 class="titulo-sec">🏆 Tabla de la semana</h2>
+      <p style="margin:0 0 8px">Aciertos acumulados desde el lunes.</p>
+      <table><thead><tr><th>#</th><th>Apodo</th><th style="text-align:right">Aciertos</th></tr></thead><tbody id="tabla"></tbody></table>
+    </section>
+
+    <section class="card">
+      <h2 class="titulo-sec">📋 Resultados anteriores</h2>
+      <div id="anteriores"><p>Aún no hay resultados.</p></div>
+    </section>
+  </main>
+  <div id="footer"></div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/quiniela.js"></script>
+</body>
+</html>

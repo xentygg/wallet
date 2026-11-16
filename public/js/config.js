@@ -3,6 +3,7 @@
 // =====================================================================
 window.CONFIG = {
   marca: "Don Gato",
+  responsable: "El equipo de Don Gato",   // nombre de la persona responsable de los datos (aviso de privacidad)
   eslogan: "Trivias, quinielas y datos curiosos de futbol, NFL y béisbol. Aquí se ve quién sí sabe.",
 
   // Redes y comunidad
