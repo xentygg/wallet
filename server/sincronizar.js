@@ -47,9 +47,11 @@ async function sincronizar() {
     if (!r.ok) throw new Error(`la otra página respondió ${r.status}`);
     const { quinielas } = await r.json();
     const vistas = new Set();
+    const pausado = db.autoPausado();   // apagado: solo se copian resultados de las quinielas que ya hay aquí
     for (const q of quinielas) {
       vistas.add(q.fecha);
       let local = db.prepare("SELECT * FROM quinielas WHERE fecha = ?").get(q.fecha);
+      if (pausado && (!local || local.origen_id !== q.id)) continue;
       if (local && local.origen_id !== q.id) {
         if (entradasDe(local.id) === 0) { db.prepare("DELETE FROM quinielas WHERE id = ?").run(local.id); local = null; }   // la rehicieron en el origen
         else { avisarUnaVez(`dif-${q.fecha}-${q.id}`, "aviso", `La quiniela del ${q.fecha} cambió en la otra página, pero aquí ya hay quinielas enviadas: se conserva la de aquí.`); continue; }
@@ -76,7 +78,7 @@ async function sincronizar() {
       }
     }
     // Si en el origen borraron una quiniela que aquí nadie ha jugado, se borra también
-    for (const l of db.prepare("SELECT id, fecha FROM quinielas WHERE fecha >= ? AND origen_id IS NOT NULL").all(desde)) {
+    if (!pausado) for (const l of db.prepare("SELECT id, fecha FROM quinielas WHERE fecha >= ? AND origen_id IS NOT NULL").all(desde)) {
       if (!vistas.has(l.fecha) && entradasDe(l.id) === 0) {
         db.prepare("DELETE FROM quinielas WHERE id = ?").run(l.id);
         deps.anotar("aviso", `La quiniela del ${l.fecha} se borró en la otra página; aquí también.`);

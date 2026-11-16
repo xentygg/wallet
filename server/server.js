@@ -624,9 +624,21 @@ ruta("GET", "/api/admin/automatico", async (req, res) => {
   responder(res, 200, {
     activo: automatico.activo(),
     copia: sincronizar.esSeguidora(),
+    pausado: db.autoPausado(),
     log: db.prepare("SELECT creado, tipo, mensaje FROM auto_log ORDER BY id DESC LIMIT 40").all(),
   });
 });
+ruta("POST", "/api/admin/automatico/pausa", async (req, res) => {
+  requiereAdmin(req);
+  const b = await leerJSON(req);
+  if (typeof b.pausado !== "boolean") falla(400, "Falta indicar si se apaga o se enciende.");
+  db.ponerAjuste("auto_pausado", b.pausado ? 1 : 0);
+  anotarLog(b.pausado ? "aviso" : "inicio", b.pausado
+    ? "Apagaste el modo automático: no se arman ni se copian quinielas nuevas (las que ya están se siguen calificando)."
+    : "Encendiste el modo automático.");
+  responder(res, 200, { ok: true, pausado: b.pausado });
+});
+
 ruta("POST", "/api/admin/automatico/ahora", async (req, res) => {
   requiereAdmin(req);
   if (sincronizar.esSeguidora()) await sincronizar.sincronizar();

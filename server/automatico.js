@@ -197,10 +197,13 @@ async function ciclo(forzar = false) {
     const hoy = deps.fechaMX(), manana = deps.sumarDias(hoy, 1);
     const horaAhora = Number(new Intl.DateTimeFormat("en-GB", { timeZone: ZONA, hour: "2-digit", hour12: false }).format(new Date()));
     const ahoraTs = Math.floor(Date.now() / 1000);
-    // Mañana: se arma desde la hora indicada de hoy, con todos los partidos de mañana disponibles
-    if (horaAhora >= AJUSTES.horaArmarManana || forzar) await armar(manana, ahoraTs + 3600);
-    // Hoy: solo si falta (por ejemplo, el primer día), con partidos que empiecen en al menos 90 minutos
-    if (horaAhora < 21) await armar(hoy, ahoraTs + 90 * 60);
+    // Con el modo automático apagado desde el panel no se arman quinielas nuevas (pero sí se califican las que hay)
+    if (!db.autoPausado()) {
+      // Mañana: se arma desde la hora indicada de hoy, con todos los partidos de mañana disponibles
+      if (horaAhora >= AJUSTES.horaArmarManana || forzar) await armar(manana, ahoraTs + 3600);
+      // Hoy: solo si falta (por ejemplo, el primer día), con partidos que empiecen en al menos 90 minutos
+      if (horaAhora < 21) await armar(hoy, ahoraTs + 90 * 60);
+    }
     if (forzar || Date.now() - ultimaRevision >= AJUSTES.minutosEntreRevisiones * 60000) {
       ultimaRevision = Date.now();
       await revisarResultados();

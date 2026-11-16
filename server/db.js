@@ -99,4 +99,10 @@ db.exec(`CREATE TABLE IF NOT EXISTS auto_log (
   id INTEGER PRIMARY KEY, creado TEXT NOT NULL DEFAULT (datetime('now')), tipo TEXT NOT NULL, mensaje TEXT NOT NULL
 )`);
 
+// Ajustes que se cambian desde el panel (p. ej. modo automático pausado)
+db.exec("CREATE TABLE IF NOT EXISTS ajustes (clave TEXT PRIMARY KEY, valor TEXT)");
+db.ajuste = (clave) => db.prepare("SELECT valor FROM ajustes WHERE clave = ?").get(clave)?.valor ?? null;
+db.ponerAjuste = (clave, valor) => db.prepare("INSERT INTO ajustes (clave, valor) VALUES (?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor").run(clave, String(valor));
+db.autoPausado = () => db.ajuste("auto_pausado") === "1";
+
 module.exports = db;

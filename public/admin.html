@@ -214,12 +214,22 @@
       const iconos = { quiniela: "📋", resultado: "⚽", ganador: "🏆", calificada: "✅", aviso: "⚠️", error: "❌", inicio: "🔌" };
       const hora = (t) => new Date(t.replace(" ", "T") + "Z").toLocaleString("es-MX", { timeZone: "America/Mexico_City", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
       $("auto").innerHTML = `<h2 class="titulo-sec">🤖 Automático</h2>
-        ${a.activo ? `<div class="exito">Encendido: la quiniela de mañana se publica sola cada tarde y los resultados se califican solos.</div>`
+        ${a.pausado && (a.activo || a.copia) ? `<div class="error">⏸️ <b>Modo automático APAGADO.</b> No se ${a.copia ? "copian" : "arman"} quinielas nuevas: publícalas tú a mano. Las que ya están publicadas se siguen calificando solas.</div>`
+          : a.activo ? `<div class="exito">Encendido: la quiniela de mañana se publica sola cada tarde y los resultados se califican solos.</div>`
           : a.copia ? `<div class="exito">Esta página copia la quiniela de la otra página del servidor: mismos partidos, cierre y resultados. Los jugadores y ganadores son aparte.</div>`
           : `<div class="aviso">Apagado: falta la clave de API-Football en el servidor.</div>`}
-        <div class="fila" style="justify-content:flex-start;margin:12px 0"><button class="btn btn-sec mini-btn" id="auto-ahora" ${a.activo || a.copia ? "" : "disabled"}>Revisar ahora</button></div>
+        <div class="fila" style="justify-content:flex-start;margin:12px 0"><button class="btn btn-sec mini-btn" id="auto-ahora" ${a.activo || a.copia ? "" : "disabled"}>Revisar ahora</button>
+          ${a.activo || a.copia ? `<button class="btn mini-btn ${a.pausado ? "btn-pri" : "btn-sec"}" id="auto-pausa">${a.pausado ? "▶️ Encender modo automático" : "⏸️ Apagar modo automático"}</button>` : ""}</div>
         <div>${a.log.map((l) => `<div style="padding:7px 0;border-bottom:1px solid var(--line);font-size:.9rem">
           ${iconos[l.tipo] || "•"} <span style="color:var(--muted)">${esc(hora(l.creado))}</span> · ${esc(l.mensaje)}</div>`).join("") || "<p>Sin actividad todavía.</p>"}</div>`;
+      if ($("auto-pausa")) $("auto-pausa").onclick = async () => {
+        const apagar = !a.pausado;
+        if (!confirm(apagar
+          ? "¿Apagar el modo automático?\n\nYa no se publicarán quinielas nuevas solas: tendrás que publicarlas tú. Las que ya están se siguen calificando."
+          : "¿Encender el modo automático?\n\nLas quinielas se volverán a publicar y calificar solas.")) return;
+        try { await MC.api("POST", "/api/admin/automatico/pausa", { pausado: apagar }); } catch (err) { alert(err.message); }
+        inicio();
+      };
       if ($("auto-ahora")) $("auto-ahora").onclick = async (e) => {
         e.target.disabled = true; e.target.textContent = "Revisando…";
         try { await MC.api("POST", "/api/admin/automatico/ahora", {}); } catch (err) { alert(err.message); }
