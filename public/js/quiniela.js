@@ -40,11 +40,11 @@
         <div style="text-align:right;font-weight:700">Atínale a los ${total}<br>y es tuyo</div>
       </div>
       <p style="margin:0 0 4px">${q.cerrada ? "Cerró" : "Cierra"}: <b>${esc(fmtHora(q.cierre))}</b> (hora CDMX)${q.cerrada ? "" : ` · <span class="cuenta" id="cuenta"></span>`}</p>
-      <p style="font-size:.9rem;margin:0 0 6px">Elige <b>L</b> (gana local), <b>E</b> (empate) o <b>V</b> (gana visita). Una quiniela por persona al día. ${q.participantes} participando.</p>
+      <p style="font-size:.9rem;margin:0 0 6px">Elige <b>L</b> (gana local), <b>E</b> (empate) o <b>V</b> (gana visita). Donde no hay empate (NFL, NBA, béisbol) solo aparecen L y V. Una quiniela por persona al día. ${q.participantes} participando.</p>
       ${estado}
       <div id="partidos">${q.partidos.map((p) => {
         const mio = mia && mia.picks[p.id];
-        const botones = ["L", "E", "V"].map((x) => {
+        const botones = (p.empate ? ["L", "E", "V"] : ["L", "V"]).map((x) => {
           let cls = "pick";
           if (mio) {
             if (mio === x) cls += q.calificada ? (p.resultado === "C" || p.resultado === x ? " ok" : " mal") : " sel";

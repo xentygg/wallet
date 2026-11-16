@@ -125,7 +125,7 @@ const requiereUsuario = (req) => usuarioDe(req) || falla(401, "Necesitas iniciar
 function requiereAdmin(req) { const s = sesionDe(req); if (!s || !s.es_admin) falla(401, "Solo el administrador."); }
 
 // ------------------------------------------------------------------ lógica de la quiniela
-function partidosDe(qid) { return db.prepare("SELECT id, orden, liga, local, visita, hora, resultado FROM partidos WHERE quiniela_id = ? ORDER BY orden").all(qid); }
+function partidosDe(qid) { return db.prepare("SELECT id, orden, liga, local, visita, hora, empate, resultado FROM partidos WHERE quiniela_id = ? ORDER BY orden").all(qid); }
 
 function calificar(qid) {
   const ps = partidosDe(qid);
@@ -169,7 +169,7 @@ function quinielaPublica(q, usuario) {
     id: q.id, fecha: q.fecha, cierre: q.cierre, premio: q.premio, calificada: !!q.calificada,
     cerrada: Date.now() >= Date.parse(q.cierre),
     participantes: db.prepare("SELECT COUNT(*) n FROM entradas WHERE quiniela_id = ? AND anulada = 0").get(q.id).n,
-    partidos: ps.map((p) => ({ id: p.id, liga: p.liga, local: p.local, visita: p.visita, hora: p.hora, resultado: q.calificada ? p.resultado : null })),
+    partidos: ps.map((p) => ({ id: p.id, liga: p.liga, local: p.local, visita: p.visita, hora: p.hora, empate: !!p.empate, resultado: q.calificada ? p.resultado : null })),
   };
   if (usuario) {
     const e = db.prepare("SELECT picks, aciertos, anulada FROM entradas WHERE quiniela_id = ? AND usuario_id = ?").get(q.id, usuario.id);
@@ -276,7 +276,7 @@ ruta("POST", "/api/quiniela/:id/enviar", async (req, res, p) => {
   const picks = {};
   for (const pt of ps) {
     const v = b.picks && b.picks[pt.id];
-    if (!["L", "E", "V"].includes(v)) falla(400, "Elige un resultado para cada partido.");
+    if (!(pt.empate ? ["L", "E", "V"] : ["L", "V"]).includes(v)) falla(400, "Elige un resultado válido para cada partido.");
     picks[pt.id] = v;
   }
   db.prepare("INSERT INTO entradas (quiniela_id, usuario_id, picks, ip, agente) VALUES (?, ?, ?, ?, ?)")
@@ -336,8 +336,8 @@ ruta("POST", "/api/admin/quinielas", async (req, res) => {
   for (const x of ps) if (!limpiar(x.local, 40) || !limpiar(x.visita, 40)) falla(400, "Cada partido necesita equipo local y visitante.");
   if (db.prepare("SELECT 1 FROM quinielas WHERE fecha = ?").get(fecha)) falla(409, "Ya existe una quiniela para esa fecha.");
   const r = db.prepare("INSERT INTO quinielas (fecha, cierre, premio) VALUES (?, ?, ?)").run(fecha, new Date(b.cierre).toISOString(), premio);
-  const ins = db.prepare("INSERT INTO partidos (quiniela_id, orden, liga, local, visita, hora) VALUES (?, ?, ?, ?, ?, ?)");
-  ps.forEach((x, i) => ins.run(r.lastInsertRowid, i + 1, limpiar(x.liga, 30), limpiar(x.local, 40), limpiar(x.visita, 40), limpiar(x.hora, 30)));
+  const ins = db.prepare("INSERT INTO partidos (quiniela_id, orden, liga, local, visita, hora, empate) VALUES (?, ?, ?, ?, ?, ?, ?)");
+  ps.forEach((x, i) => ins.run(r.lastInsertRowid, i + 1, limpiar(x.liga, 30), limpiar(x.local, 40), limpiar(x.visita, 40), limpiar(x.hora, 30), x.empate === false ? 0 : 1));
   responder(res, 201, { ok: true, id: Number(r.lastInsertRowid) });
 });
 
@@ -380,7 +380,7 @@ ruta("POST", "/api/admin/quinielas/:id/resultados", async (req, res, p) => {
   const upd = db.prepare("UPDATE partidos SET resultado = ? WHERE id = ? AND quiniela_id = ?");
   for (const pt of partidosDe(qid)) {
     const v = b.resultados && b.resultados[pt.id];
-    upd.run(["L", "E", "V", "C"].includes(v) ? v : null, pt.id, qid);
+    upd.run((pt.empate ? ["L", "E", "V", "C"] : ["L", "V", "C"]).includes(v) ? v : null, pt.id, qid);
   }
   responder(res, 200, { ok: true, calificada: calificar(qid) });
 });

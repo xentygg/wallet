@@ -9,8 +9,10 @@
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="icon" href="/img/perfil.webp">
   <style>
-    .fila-partido { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+    .fila-partido { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 6px; margin-bottom: 8px; align-items: center; }
     @media (max-width: 620px) { .fila-partido { grid-template-columns: 1fr 1fr; } }
+    .empate { display: flex; gap: 6px; align-items: center; font-size: .85rem; white-space: nowrap; }
+    .empate input { width: 18px; height: 18px; accent-color: var(--amarillo); }
     .entrada { border-top: 1px solid var(--line); padding: 12px 0; }
     .entrada.gana { background: rgba(255,221,0,.08); }
     .alerta { color: #ffb3b6; font-size: .85rem; }
@@ -68,10 +70,12 @@
               <div><label>Premio ($)</label><input type="number" id="n-premio" value="300" min="0"></div>
             </div>
             <p class="ayuda">El cierre debe ser antes de que empiece el primer partido.</p>
-            <div><label>Partidos (liga · local · visitante · hora)</label>
+            <div><label>Partidos (liga · local · visitante · hora · ¿puede haber empate?)</label>
             ${[1, 2, 3, 4, 5].map((i) => `<div class="fila-partido">
               <input type="text" placeholder="Liga" id="p${i}-liga"><input type="text" placeholder="Local ${i}" id="p${i}-local">
-              <input type="text" placeholder="Visitante ${i}" id="p${i}-visita"><input type="text" placeholder="Ej. Sáb 19:00" id="p${i}-hora"></div>`).join("")}</div>
+              <input type="text" placeholder="Visitante ${i}" id="p${i}-visita"><input type="text" placeholder="Ej. Sáb 19:00" id="p${i}-hora">
+              <label class="empate"><input type="checkbox" id="p${i}-empate" checked> Puede haber empate</label></div>`).join("")}</div>
+            <p class="ayuda">En futbol deja marcado "Puede haber empate". En NFL, NBA o béisbol quítalo: la gente solo verá L y V.</p>
             <div class="error" id="n-err" hidden></div>
             <button class="btn btn-pri">Publicar quiniela</button>
           </form>
@@ -80,7 +84,7 @@
       $("ver-usuarios").onclick = usuarios;
       $("nueva").onsubmit = async (e) => {
         e.preventDefault();
-        const partidos = [1, 2, 3, 4, 5].map((i) => ({ liga: $(`p${i}-liga`).value, local: $(`p${i}-local`).value, visita: $(`p${i}-visita`).value, hora: $(`p${i}-hora`).value }))
+        const partidos = [1, 2, 3, 4, 5].map((i) => ({ liga: $(`p${i}-liga`).value, local: $(`p${i}-local`).value, visita: $(`p${i}-visita`).value, hora: $(`p${i}-hora`).value, empate: $(`p${i}-empate`).checked }))
           .filter((p) => p.local || p.visita);
         try {
           if (!$("n-cierre").value) throw new Error("Pon la hora de cierre.");
@@ -102,8 +106,8 @@
           <p>Cierre: ${esc(new Date(q.cierre).toLocaleString("es-MX", { timeZone: "America/Mexico_City" }))} · Premio ${pesos(q.premio)} · ${d.entradas.length} quinielas</p>
           <h3>Resultados</h3>
           ${d.partidos.map((p) => `<div class="partido" style="grid-template-columns:1fr 140px">
-            <div>${p.liga ? `<small class="amarillo">${esc(p.liga)}</small><br>` : ""}<b>${esc(p.local)}</b> vs <b>${esc(p.visita)}</b></div>
-            <select id="r-${p.id}"><option value="">— Pendiente —</option>${["L", "E", "V", "C"].map((x) => `<option value="${x}" ${p.resultado === x ? "selected" : ""}>${x} · ${NOM[x]}</option>`).join("")}</select>
+            <div>${p.liga ? `<small class="amarillo">${esc(p.liga)}</small><br>` : ""}<b>${esc(p.local)}</b> vs <b>${esc(p.visita)}</b>${p.empate ? "" : ' <span class="badge gris">sin empate</span>'}</div>
+            <select id="r-${p.id}"><option value="">— Pendiente —</option>${(p.empate ? ["L", "E", "V", "C"] : ["L", "V", "C"]).map((x) => `<option value="${x}" ${p.resultado === x ? "selected" : ""}>${x} · ${NOM[x]}</option>`).join("")}</select>
           </div>`).join("")}
           <div class="fila" style="margin-top:12px"><button class="btn btn-pri" id="guardar">Guardar resultados y calificar</button>
           ${d.entradas.length ? "" : '<button class="btn btn-sec" id="borrar">Borrar quiniela</button>'}</div>

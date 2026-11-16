@@ -76,4 +76,8 @@ CREATE INDEX IF NOT EXISTS idx_entradas_usuario ON entradas(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_usuarios_ip ON usuarios(ip);
 `);
 
+// Actualizaciones de la base de datos (se aplican solas una vez)
+const columnas = db.prepare("PRAGMA table_info(partidos)").all().map((c) => c.name);
+if (!columnas.includes("empate")) db.exec("ALTER TABLE partidos ADD COLUMN empate INTEGER NOT NULL DEFAULT 1"); // 0 = sin empate (NFL, NBA, béisbol)
+
 module.exports = db;
