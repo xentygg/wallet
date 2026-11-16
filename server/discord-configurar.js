@@ -196,10 +196,14 @@ async function main() {
     const msgs = await api("GET", `/channels/${canales[clave]}/messages?limit=50`);
     if (msgs.length) {
       if (!REBRAND) return;
-      const mio = msgs.slice().reverse().find((m) => m.author && m.author.id === yoBot.id && !(m.embeds && m.embeds.length));
+      // Solo mensajes normales del bot (tipo 0), no los avisos automáticos de Discord como "fijó un mensaje"
+      const mio = msgs.slice().reverse().find((m) => m.author && m.author.id === yoBot.id && (m.type === 0 || m.type === undefined)
+        && m.content && !(m.embeds && m.embeds.length));
       if (mio && mio.content !== contenido) {
-        await api("PATCH", `/channels/${canales[clave]}/messages/${mio.id}`, { content: contenido, allowed_mentions: { parse: [] } });
-        console.log(`  ✎ mensaje de ${clave} actualizado`);
+        try {
+          await api("PATCH", `/channels/${canales[clave]}/messages/${mio.id}`, { content: contenido, allowed_mentions: { parse: [] } });
+          console.log(`  ✎ mensaje de ${clave} actualizado`);
+        } catch (e) { avisos.push(`No pude actualizar el mensaje de #${clave} (${e.message}). Edítalo a mano si hace falta.`); }
         await espera(400);
       }
       return;
