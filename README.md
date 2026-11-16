@@ -48,7 +48,7 @@ read -s -p "Pega tu clave de API-Football y presiona Enter: " K; echo; sed -i '/
 
 ## Discord (bot de Don Gato)
 
-El bot arma el servidor de Discord (categorías, canales, permisos, reglas, bienvenida, ícono, seguridad e invitación permanente) y después publica solo la quiniela del día en `#quiniela-del-día` y los resultados y el ganador en `#ganadores`. La página toma sola el enlace de invitación.
+El bot arma el servidor de Discord (roles con colores, categorías, canales, permisos, reglas, bienvenida, ícono, seguridad e invitación permanente), le da el rol 😺 Aficionado a cada persona que entra (requiere activar "Server Members Intent" en el portal de desarrolladores) y después publica solo la quiniela del día en `#quiniela-del-día` y los resultados y el ganador en `#ganadores`. La página toma sola el enlace de invitación.
 
 Guardar el token del bot y configurar el servidor (en la consola del servidor; el token no se ve al pegarlo):
 

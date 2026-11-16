@@ -7,8 +7,23 @@ const path = require("node:path");
 const { api, espera, CONFIG_PATH, SITIO } = require("./discord");
 
 const VIEW = 1n << 10n, SEND = 1n << 11n, REACT = 1n << 6n, HISTORY = 1n << 16n;
+const ADMINISTRADOR = 1n << 3n, KICK = 1n << 1n, BAN = 1n << 2n, CANALES = 1n << 4n, AUDITORIA = 1n << 7n, MENSAJES = 1n << 13n,
+  MENCIONAR_TODOS = 1n << 17n, APODOS = 1n << 27n, ROLES_P = 1n << 28n, SILENCIAR = 1n << 40n;
+
+// Roles, de arriba hacia abajo. "auto": se le da a todos al entrar (lo hace la página con el bot).
+const ROLES = [
+  { clave: "dongato", nombre: "👑 Don Gato", color: 0xffdd00, permisos: ADMINISTRADOR },
+  { clave: "admin", nombre: "🛡️ Admin", color: 0xe4242c, permisos: KICK | BAN | CANALES | AUDITORIA | MENSAJES | MENCIONAR_TODOS | APODOS | ROLES_P | SILENCIAR },
+  { clave: "moderador", nombre: "🔨 Moderador", color: 0x16b250, permisos: KICK | MENSAJES | APODOS | SILENCIAR },
+  { clave: "ganador", nombre: "🏆 Ganador", color: 0xff9f43, permisos: 0n },
+  { clave: "vip", nombre: "💎 VIP", color: 0xa855f7, permisos: 0n },
+  { clave: "aficionado", nombre: "😺 Aficionado", color: 0xdcdde1, permisos: 0n, auto: true },
+];
 const THREADS = (1n << 35n) | (1n << 36n) | (1n << 38n);
-const soloLectura = (everyoneId) => [{ id: everyoneId, type: 0, allow: String(VIEW | REACT | HISTORY), deny: String(SEND | THREADS) }];
+const soloLectura = (everyoneId, staff) => [
+  { id: everyoneId, type: 0, allow: String(VIEW | REACT | HISTORY), deny: String(SEND | THREADS) },
+  ...staff.map((id) => ({ id, type: 0, allow: String(SEND), deny: "0" })), // Admin y Moderador sí pueden escribir
+];
 
 // Estructura del servidor. "clave" = nombre interno para que la página publique ahí.
 const ESTRUCTURA = [
@@ -74,7 +89,37 @@ async function main() {
   const guild = guilds.find((g) => g.id === guildId) || (await api("GET", `/guilds/${guildId}`));
   console.log(`Configurando el servidor "${guild.name}"…`);
 
-  // 2. Categorías y canales (solo crea lo que falte)
+  // 2. Roles con colores (solo crea los que falten; si existen, les pone el color)
+  let rolesExistentes = await api("GET", `/guilds/${guildId}/roles`);
+  const roles = {};
+  for (const r of ROLES) {
+    let rol = rolesExistentes.find((x) => x.name === r.nombre);
+    if (!rol) {
+      rol = await api("POST", `/guilds/${guildId}/roles`, { name: r.nombre, color: r.color, hoist: true, mentionable: r.clave !== "aficionado", permissions: String(r.permisos) });
+      console.log(`  + rol ${r.nombre}`);
+      await espera(400);
+    } else if (rol.color !== r.color) {
+      await api("PATCH", `/guilds/${guildId}/roles/${rol.id}`, { color: r.color, hoist: true }).catch(() => {});
+    }
+    roles[r.clave] = rol.id;
+  }
+  // Orden: Don Gato arriba, Aficionado abajo (justo debajo del rol del bot)
+  const avisos = [];
+  try {
+    const yo = await api("GET", "/users/@me");
+    const miembroBot = await api("GET", `/guilds/${guildId}/members/${yo.id}`);
+    rolesExistentes = await api("GET", `/guilds/${guildId}/roles`);
+    const topeBot = Math.max(0, ...rolesExistentes.filter((x) => miembroBot.roles.includes(x.id)).map((x) => x.position));
+    const nuestros = ROLES.map((r) => roles[r.clave]);
+    if (topeBot <= nuestros.length) throw new Error("rol del bot muy abajo");
+    await api("PATCH", `/guilds/${guildId}/roles`, nuestros.map((id, i) => ({ id, position: topeBot - 1 - i })));
+    console.log("  ✓ orden de los roles");
+  } catch (e) {
+    avisos.push('Para que los roles queden en orden y el bot pueda darlos: en Discord ve a Ajustes del servidor → Roles y arrastra el rol del bot ("Don Gato" con ícono de bot) hasta arriba de todo. Luego vuelve a correr este comando.');
+  }
+  const staff = [roles.admin, roles.moderador];
+
+  // 3. Categorías y canales (solo crea lo que falte)
   let existentes = await api("GET", `/guilds/${guildId}/channels`);
   const buscar = (nombre, tipo, padre) => existentes.find((c) => c.name === nombre && c.type === tipo && (padre === undefined || c.parent_id === padre));
   const canales = {};
@@ -94,18 +139,41 @@ async function main() {
       if (!ch) {
         const cuerpo = { name: c.nombre, type: tipo, parent_id: cat.id };
         if (!c.voz) cuerpo.topic = c.tema;
-        if (c.lectura) cuerpo.permission_overwrites = soloLectura(guildId);
+        if (c.lectura) cuerpo.permission_overwrites = soloLectura(guildId, staff);
         if (c.mayores) cuerpo.nsfw = true; // canal con restricción de edad (+18)
         ch = await api("POST", `/guilds/${guildId}/channels`, cuerpo);
         existentes.push(ch);
         console.log(`  + canal ${c.nombre}`);
         await espera(400);
+      } else if (c.lectura) {
+        // Canales que ya existían: dar permiso de escribir a Admin y Moderador
+        for (const id of staff) await api("PUT", `/channels/${ch.id}/permissions/${id}`, { type: 0, allow: String(SEND), deny: "0" }).catch(() => {});
       }
       canales[c.clave] = ch.id;
     }
   }
 
-  // 3. Mensajes fijos (solo si el canal está vacío)
+  // 4. Rol Don Gato para el dueño del servidor y Aficionado para quienes ya estén
+  try {
+    const info = await api("GET", `/guilds/${guildId}`);
+    await api("PUT", `/guilds/${guildId}/members/${info.owner_id}/roles/${roles.dongato}`);
+    console.log("  ✓ te di el rol 👑 Don Gato");
+  } catch (e) { avisos.push("No pude darte el rol 👑 Don Gato (" + e.message + "). Dátelo tú en Ajustes del servidor → Roles."); }
+  let miembros = null;
+  try { miembros = await api("GET", `/guilds/${guildId}/members?limit=1000`); }
+  catch (e) { avisos.push('Para dar el rol 😺 Aficionado automáticamente: en discord.com/developers → tu aplicación → Bot, activa "Server Members Intent" y guarda. Luego vuelve a correr este comando.'); }
+  if (miembros) {
+    let n = 0, fallos = 0;
+    for (const m of miembros) {
+      if ((m.user && m.user.bot) || m.roles.includes(roles.aficionado)) continue;
+      try { await api("PUT", `/guilds/${guildId}/members/${m.user.id}/roles/${roles.aficionado}`); n++; } catch { fallos++; }
+      await espera(300);
+    }
+    console.log(`  ✓ rol 😺 Aficionado para ${n} miembro(s) que ya estaban`);
+    if (fallos) avisos.push(`No pude dar 😺 Aficionado a ${fallos} miembro(s): sube el rol del bot hasta arriba en Ajustes del servidor → Roles y vuelve a correr este comando.`);
+  }
+
+  // 5. Mensajes fijos (solo si el canal está vacío)
   const publicarSiVacio = async (clave, contenido) => {
     const msgs = await api("GET", `/channels/${canales[clave]}/messages?limit=1`);
     if (msgs.length) return;
@@ -119,14 +187,14 @@ async function main() {
   await publicarSiVacio("anuncios", ANUNCIOS);
   await publicarSiVacio("quiniela", QUINIELA);
 
-  // 4. Ajustes del servidor: ícono, seguridad media, avisos de nuevos miembros en bienvenida
+  // 6. Ajustes del servidor: ícono, seguridad media, avisos de nuevos miembros en bienvenida
   const ajustes = { verification_level: 2, explicit_content_filter: 2, default_message_notifications: 1, system_channel_id: canales.bienvenida };
   const icono = path.join(__dirname, "..", "deploy", "discord-icono.png");
   if (!guild.icon && fs.existsSync(icono)) ajustes.icon = "data:image/png;base64," + fs.readFileSync(icono).toString("base64");
   try { await api("PATCH", `/guilds/${guildId}`, ajustes); console.log("  ✓ ícono y seguridad del servidor"); }
   catch (e) { console.log("  ! No pude cambiar el ícono o la seguridad: " + e.message); }
 
-  // 5. Enlace de invitación permanente
+  // 7. Enlace de invitación permanente
   let cfgPrevia = {};
   try { cfgPrevia = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8")); } catch {}
   let invitacion = cfgPrevia.guild_id === guildId ? cfgPrevia.invitacion : null;
@@ -136,7 +204,7 @@ async function main() {
   }
 
   fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify({ guild_id: guildId, canales, invitacion }, null, 2));
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify({ guild_id: guildId, canales, roles, invitacion }, null, 2));
   fs.chmodSync(CONFIG_PATH, 0o644);
 
   console.log("\n============================================================");
@@ -144,6 +212,7 @@ async function main() {
   console.log(`  ENLACE DE INVITACIÓN:  ${invitacion}`);
   console.log("  La página ya lo usa sola. Recárgala con Ctrl + F5.");
   console.log("============================================================");
+  if (avisos.length) { console.log("\n⚠️  Pendientes:"); avisos.forEach((a) => console.log("  - " + a)); }
 }
 
 main().catch((e) => { console.error("\n❌ " + e.message); process.exit(1); });

@@ -608,4 +608,5 @@ const automatico = require("./automatico");
 servidor.listen(PORT, "127.0.0.1", () => {
   console.log(`Don Gato escuchando en http://127.0.0.1:${PORT}`);
   automatico.iniciar({ calificar, reglasDe, ganadoresDe, fechaMX, sumarDias, avisarQuinielaDiscord, avisarResultadosDiscord });
+  require("./discord-gateway").iniciar(anotarLog);
 });
