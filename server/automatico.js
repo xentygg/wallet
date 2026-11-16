@@ -48,18 +48,54 @@ function prioridadDe(f) {
 }
 const enEspanol = (equipo) => (AJUSTES.selecciones && AJUSTES.selecciones[equipo]) || equipo;
 
-// Elige los partidos: primero por orden de liga, luego por hora. Prefiere partidos desde la hora mínima.
-function elegir(fixtures, minTs) {
+// Elige los partidos. Primero los parejos (favorito paga >= momioMinimo), luego los que no tienen momio,
+// y solo si no alcanza, los "regalados" (el menos fácil primero). Dentro de cada grupo: liga preferida y hora.
+function elegir(fixtures, minTs, momios = new Map()) {
   const candidatos = fixtures.filter((f) => f.fixture?.status?.short === "NS" && f.fixture.timestamp >= minTs && prioridadDe(f) >= 0);
   const pr = new Map(candidatos.map((f) => [f, prioridadDe(f)]));
   const orden = (a, b) => pr.get(a) - pr.get(b) || a.fixture.timestamp - b.fixture.timestamp;
-  const preferidos = candidatos.filter((f) => horaMX(f.fixture.timestamp) >= AJUSTES.horaMinimaPartido).sort(orden);
-  let elegidos = preferidos.slice(0, AJUSTES.partidos);
-  if (elegidos.length < AJUSTES.partidos) {
-    const resto = candidatos.filter((f) => !elegidos.includes(f)).sort(orden);
-    elegidos = elegidos.concat(resto.slice(0, AJUSTES.partidos - elegidos.length));
+  const temprano = (f) => horaMX(f.fixture.timestamp) < AJUSTES.horaMinimaPartido;
+  const grupo = (f) => {
+    const m = momios.get(f.fixture.id);
+    return m === undefined ? 1 : m >= AJUSTES.momioMinimo ? 0 : 2;
+  };
+  const ordenFinal = (a, b) => grupo(a) - grupo(b)
+    || (grupo(a) === 2 ? momios.get(b.fixture.id) - momios.get(a.fixture.id) : 0)   // regalados: el menos fácil primero
+    || Number(temprano(a)) - Number(temprano(b)) || orden(a, b);
+  return candidatos.sort(ordenFinal).slice(0, AJUSTES.partidos).sort((a, b) => a.fixture.timestamp - b.fixture.timestamp);
+}
+
+// Momio del favorito (el menor entre gana local y gana visita), promedio de las casas que lo reportan
+function momioFavorito(respuesta) {
+  const favs = [];
+  for (const casa of (respuesta && respuesta[0] && respuesta[0].bookmakers) || []) {
+    const apuesta = (casa.bets || []).find((b) => b.id === 1 || /match winner/i.test(b.name || ""));
+    if (!apuesta) continue;
+    const v = (n) => Number((apuesta.values || []).find((x) => x.value === n)?.odd);
+    const fav = Math.min(v("Home"), v("Away"));
+    if (Number.isFinite(fav) && fav > 1) favs.push(fav);
   }
-  return elegidos.sort((a, b) => a.fixture.timestamp - b.fixture.timestamp);
+  return favs.length ? favs.reduce((a, b) => a + b, 0) / favs.length : undefined;
+}
+
+let avisoMomios = false;
+async function consultarMomios(fixtures, minTs) {
+  const momios = new Map();
+  if (!AJUSTES.momioMinimo || !AJUSTES.maxConsultasMomios) return momios;
+  const candidatos = fixtures.filter((f) => f.fixture?.status?.short === "NS" && f.fixture.timestamp >= minTs && prioridadDe(f) >= 0)
+    .sort((a, b) => prioridadDe(a) - prioridadDe(b) || a.fixture.timestamp - b.fixture.timestamp)
+    .slice(0, AJUSTES.maxConsultasMomios);
+  for (const [i, f] of candidatos.entries()) {
+    try {
+      const m = momioFavorito(await consultar("/odds", { fixture: f.fixture.id }));
+      if (m !== undefined) momios.set(f.fixture.id, m);
+    } catch (e) {
+      if (!avisoMomios) { anotar("aviso", `No pude consultar momios (${e.message}). Elijo partidos sin revisar su dificultad.`); avisoMomios = true; }
+      break;
+    }
+    if (i < candidatos.length - 1) await new Promise((r) => setTimeout(r, Number(process.env.MOMIOS_PAUSA_MS ?? 6500))); // límite por minuto del plan
+  }
+  return momios;
 }
 
 // Para el panel: qué ligas había ese día (ayuda a encontrar ids nuevos)
@@ -79,7 +115,9 @@ async function armar(fecha, minTs) {
   ultimoIntento.set(fecha, Date.now());
 
   const fixtures = await consultar("/fixtures", { date: fecha, timezone: ZONA });
-  const elegidos = elegir(fixtures, minTs);
+  const momios = await consultarMomios(fixtures, minTs);
+  const elegidos = elegir(fixtures, minTs, momios);
+  const regalados = elegidos.filter((f) => momios.has(f.fixture.id) && momios.get(f.fixture.id) < AJUSTES.momioMinimo).length;
   if (elegidos.length < AJUSTES.minimoPartidos) {
     anotar("aviso", `No hay suficientes partidos para la quiniela del ${fecha} (encontré ${elegidos.length}). Lo vuelvo a intentar en una hora. Ligas con partidos ese día: ${resumenLigas(fixtures)}.`);
     return false;
@@ -98,7 +136,8 @@ async function armar(fecha, minTs) {
     db.exec("COMMIT");
   } catch (e) { db.exec("ROLLBACK"); throw e; }
   deps.avisarQuinielaDiscord(Number(qidNueva));
-  anotar("quiniela", `Publiqué la quiniela del ${fecha}: ${elegidos.map((f) => `${enEspanol(f.teams.home.name)} vs ${enEspanol(f.teams.away.name)} (${f.league.name}, id ${f.league.id})`).join(" · ")}`);
+  anotar("quiniela", `Publiqué la quiniela del ${fecha}: ${elegidos.map((f) => `${enEspanol(f.teams.home.name)} vs ${enEspanol(f.teams.away.name)} (${f.league.name}, id ${f.league.id}${momios.has(f.fixture.id) ? `, favorito ${momios.get(f.fixture.id).toFixed(2)}` : ""})`).join(" · ")}`
+    + (regalados ? ` ⚠️ ${regalados} partido(s) fácil(es): no había suficientes parejos.` : ""));
   return true;
 }
 
@@ -181,4 +220,4 @@ function iniciar(dependencias) {
   setInterval(() => ciclo(), 10 * 60000).unref();
 }
 
-module.exports = { iniciar, ciclo, activo, _pruebas: { elegir, resultadoDe, prioridadDe, resumenLigas } };
+module.exports = { iniciar, ciclo, activo, _pruebas: { elegir, resultadoDe, prioridadDe, resumenLigas, momioFavorito } };

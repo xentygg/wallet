@@ -121,7 +121,7 @@
             </div>
           </div>`).join("")}
           <div class="fila" style="margin-top:12px"><button class="btn btn-pri" id="guardar">Guardar resultados y calificar</button>
-          ${d.entradas.length ? "" : '<button class="btn btn-sec" id="borrar">Borrar quiniela</button>'}</div>
+          <button class="btn btn-sec" id="borrar">🗑️ Borrar quiniela</button></div>
           <p class="ayuda">Se califica sola cuando todos los partidos tienen marcador o están cancelados. Cancelado cuenta como acierto para todos; 1 cancelado baja el premio y 2 o más anulan la quiniela.</p>
         </section>
         <section class="card">
@@ -153,9 +153,17 @@
         try { await MC.api("POST", `/api/admin/quinielas/${id}/resultados`, { marcadores }); detalle(id); } catch (err) { alert(err.message); }
       };
       d.partidos.forEach((p) => $(`c-${p.id}`).onchange = (ev) => { $(`gl-${p.id}`).disabled = $(`gv-${p.id}`).disabled = ev.target.checked; });
-      if ($("borrar")) $("borrar").onclick = async () => {
-        if (!confirm("¿Borrar esta quiniela?")) return;
-        try { await MC.api("DELETE", `/api/admin/quinielas/${id}`); inicio(); } catch (err) { alert(err.message); }
+      $("borrar").onclick = async () => {
+        const n = d.entradas.length;
+        if (!confirm(`¿Borrar la quiniela del ${q.fecha}?` + (n ? `\n\n⚠️ Ya hay ${n} quiniela(s) enviada(s) y se van a perder.` : ""))) return;
+        if (n && !confirm(`¿Seguro? Se borrarán las ${n} quinielas que ya mandó la gente. Esto no se puede deshacer.`)) return;
+        try {
+          await MC.api("DELETE", `/api/admin/quinielas/${id}${n ? "?forzar=1" : ""}`);
+          if (confirm("Quiniela borrada.\n\n¿Quieres que el sistema arme otra automáticamente con partidos nuevos? (si todavía hay partidos ese día)")) {
+            try { await MC.api("POST", "/api/admin/automatico/ahora", {}); } catch (e) { alert(e.message); }
+          }
+          inicio();
+        } catch (err) { alert(err.message); }
       };
       document.querySelectorAll("[data-acc]").forEach((b) => b.onclick = async () => {
         const v = b.dataset.v === "1";

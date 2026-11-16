@@ -10,6 +10,11 @@ module.exports = {
   horaMinimaPartido: 11,        // se prefieren partidos que empiecen desde esta hora (CDMX), para que la gente alcance a jugar
   minutosEntreRevisiones: 20,   // cada cuánto se revisan resultados (cuida el límite del plan gratis)
 
+  // Dificultad: se descartan partidos "regalados". Si el favorito paga menos que esto, el partido es muy fácil.
+  // (Los momios solo se usan aquí, por dentro; nunca se muestran en la página ni en los videos.)
+  momioMinimo: 1.45,
+  maxConsultasMomios: 15,       // cuántos partidos revisar por día (cada uno gasta 1 consulta del plan)
+
   // Ligas en orden de preferencia. Primero se llenan con las de arriba.
   // Cada una se reconoce por su número de API-Football ("id") o por su nombre ("buscar", expresión regular),
   // por si el número cambia. "soloEquipos" = solo partidos donde juegue alguno de esos equipos.

@@ -419,10 +419,13 @@ ruta("POST", "/api/admin/quinielas", async (req, res) => {
 
 ruta("DELETE", "/api/admin/quinielas/:id", async (req, res, p) => {
   requiereAdmin(req);
+  // Si ya hay quinielas enviadas, solo se borra confirmando (?forzar=1); se borran también esas quinielas.
   const n = db.prepare("SELECT COUNT(*) n FROM entradas WHERE quiniela_id = ?").get(Number(p.id)).n;
-  if (n > 0) falla(409, "No se puede borrar: ya tiene quinielas enviadas.");
+  if (n > 0 && !/[?&]forzar=1/.test(req.url)) falla(409, `Ya hay ${n} quiniela(s) enviada(s). Si la borras, se pierden.`);
+  const q = db.prepare("SELECT fecha FROM quinielas WHERE id = ?").get(Number(p.id)) || falla(404, "No existe.");
   db.prepare("DELETE FROM quinielas WHERE id = ?").run(Number(p.id));
-  responder(res, 200, { ok: true });
+  anotarLog("aviso", `Borraste la quiniela del ${q.fecha}${n ? ` (con ${n} quiniela(s) enviada(s))` : ""}.`);
+  responder(res, 200, { ok: true, fecha: q.fecha });
 });
 
 ruta("GET", "/api/admin/quinielas/:id", async (req, res, p) => {
