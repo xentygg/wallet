@@ -89,6 +89,11 @@ if (!columnas.includes("goles_local")) db.exec("ALTER TABLE partidos ADD COLUMN 
 if (!columnas.includes("goles_visita")) db.exec("ALTER TABLE partidos ADD COLUMN goles_visita INTEGER");
 const colE = db.prepare("PRAGMA table_info(entradas)").all().map((c) => c.name);
 if (!colE.includes("goles")) db.exec("ALTER TABLE entradas ADD COLUMN goles INTEGER"); // desempate: total de goles que adivinó
+// Contador de visitas y clics (anónimo: "visitante" es un número al azar guardado en el navegador)
+db.exec(`CREATE TABLE IF NOT EXISTS eventos (
+  fecha TEXT NOT NULL, tipo TEXT NOT NULL, visitante TEXT NOT NULL,
+  PRIMARY KEY (fecha, tipo, visitante)
+)`);
 db.exec(`CREATE TABLE IF NOT EXISTS auto_log (
   id INTEGER PRIMARY KEY, creado TEXT NOT NULL DEFAULT (datetime('now')), tipo TEXT NOT NULL, mensaje TEXT NOT NULL
 )`);

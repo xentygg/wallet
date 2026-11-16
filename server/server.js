@@ -565,6 +565,56 @@ process.on("unhandledRejection", (e) => console.error("Promesa rechazada:", e));
 setInterval(() => db.prepare("DELETE FROM sesiones WHERE expira < ?").run(new Date().toISOString()), 3600000).unref();
 
 // Estado de la quiniela automática (para el panel)
+// ---------- Contador: visitas y clics (anónimo) ----------
+const TIPOS_EVENTO = new Set(["visita", "clic_discord", "clic_whatsapp"]);
+ruta("POST", "/api/evento", async (req, res) => {
+  if (limitar("evento:" + ipDe(req), 120, 10)) return responder(res, 200, { ok: true });
+  const b = await leerJSON(req);
+  const v = String(b.v || "");
+  if (TIPOS_EVENTO.has(b.tipo) && /^[a-z0-9]{8,32}$/.test(v)) {
+    db.prepare("INSERT OR IGNORE INTO eventos (fecha, tipo, visitante) VALUES (?, ?, ?)").run(fechaMX(), b.tipo, v);
+  }
+  responder(res, 200, { ok: true });
+});
+
+// Embudo para el panel: visitantes → cuentas → jugaron → clic en Discord (+ datos reales del Discord)
+ruta("GET", "/api/admin/embudo", async (req, res) => {
+  requiereAdmin(req);
+  const hoy = fechaMX(), desde = sumarDias(hoy, -6);
+  const dias = [];
+  for (let f = desde; f <= hoy; f = sumarDias(f, 1)) {
+    const ev = (t) => db.prepare("SELECT COUNT(*) n FROM eventos WHERE fecha = ? AND tipo = ?").get(f, t).n;
+    dias.push({
+      fecha: f, visitantes: ev("visita"), clic_discord: ev("clic_discord"),
+      cuentas: db.prepare("SELECT COUNT(*) n FROM usuarios WHERE date(creado, '-6 hours') = ?").get(f).n,
+      jugaron: db.prepare("SELECT COUNT(DISTINCT usuario_id) n FROM entradas WHERE date(creado, '-6 hours') = ?").get(f).n,
+    });
+  }
+  const unicos = (t) => db.prepare("SELECT COUNT(DISTINCT visitante) n FROM eventos WHERE fecha >= ? AND tipo = ?").get(desde, t).n;
+  const total = {
+    visitantes: unicos("visita"), clic_discord: unicos("clic_discord"), clic_whatsapp: unicos("clic_whatsapp"),
+    cuentas: db.prepare("SELECT COUNT(*) n FROM usuarios WHERE date(creado, '-6 hours') >= ?").get(desde).n,
+    jugaron: db.prepare("SELECT COUNT(DISTINCT usuario_id) n FROM entradas WHERE date(creado, '-6 hours') >= ?").get(desde).n,
+    volvieron: db.prepare(`SELECT COUNT(*) n FROM (SELECT usuario_id FROM entradas e JOIN quinielas q ON q.id = e.quiniela_id
+                           WHERE q.fecha >= ? GROUP BY usuario_id HAVING COUNT(*) >= 3)`).get(desde).n,
+  };
+  // Datos reales del Discord (si el bot está configurado)
+  let discordInfo = null;
+  const cfg = discord.leerConfig();
+  if (discord.activo() && cfg) {
+    try {
+      const [g, invs] = await Promise.all([
+        discord.api("GET", `/guilds/${cfg.guild_id}?with_counts=true`),
+        discord.api("GET", `/guilds/${cfg.guild_id}/invites`).catch(() => []),
+      ]);
+      const codigo = String(cfg.invitacion || "").split("/").pop();
+      const inv = invs.find((i) => i.code === codigo);
+      discordInfo = { miembros: g.approximate_member_count ?? null, usos_invitacion: inv ? inv.uses : null };
+    } catch (e) { discordInfo = { error: e.message }; }
+  }
+  responder(res, 200, { desde, hoy, dias, total, discord: discordInfo });
+});
+
 ruta("GET", "/api/admin/automatico", async (req, res) => {
   requiereAdmin(req);
   responder(res, 200, {

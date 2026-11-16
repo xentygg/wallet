@@ -134,5 +134,27 @@
       </section>`;
   }
 
+  // ---------- Contador anónimo de visitas y clics ----------
+  function visitante() {
+    let v = store.get("mc_vid");
+    if (!v) { v = Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => (b % 36).toString(36)).join(""); store.set("mc_vid", v); }
+    return v;
+  }
+  function evento(tipo) {
+    try {
+      const datos = new Blob([JSON.stringify({ tipo, v: visitante() })], { type: "application/json" });
+      if (!navigator.sendBeacon || !navigator.sendBeacon("/api/evento", datos)) fetch("/api/evento", { method: "POST", body: datos, headers: { "Content-Type": "application/json" }, keepalive: true }).catch(() => {});
+    } catch (e) {}
+  }
+  if (!location.pathname.startsWith("/admin")) {
+    evento("visita");
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest && e.target.closest("a[href]");
+      if (!a) return;
+      if (/discord\.(gg|com)/.test(a.href)) evento("clic_discord");
+      else if (/wa\.me/.test(a.href)) evento("clic_whatsapp");
+    }, true);
+  }
+
   window.MC = { discord, store, api, esc, urlConMiRef, urlRegistro, compartirWhatsApp, gato, avatar, montar };
 })();

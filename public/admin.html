@@ -58,6 +58,7 @@
       const manana = new Date(Date.parse(d.hoy + "T12:00:00Z") + 86400000).toISOString().slice(0, 10);
       const tieneHoy = d.quinielas.some((q) => q.fecha === d.hoy);
       app.innerHTML = `
+        <section class="card" id="embudo"><h2 class="titulo-sec">📊 ¿Cómo va la gente?</h2><p>Cargando…</p></section>
         <section class="card">
           <h2 class="titulo-sec">Quinielas</h2>
           <div class="lista-q">${d.quinielas.map((q) => `<a href="#q${q.id}" data-id="${q.id}">
@@ -89,6 +90,7 @@
       document.querySelectorAll(".lista-q a").forEach((a) => a.onclick = (e) => { e.preventDefault(); detalle(a.dataset.id); });
       $("ver-usuarios").onclick = usuarios;
       cargarAutomatico();
+      cargarEmbudo();
       $("nueva").onsubmit = async (e) => {
         e.preventDefault();
         const partidos = [1, 2, 3, 4, 5].map((i) => ({ liga: $(`p${i}-liga`).value, local: $(`p${i}-local`).value, visita: $(`p${i}-visita`).value, hora: $(`p${i}-hora`).value, empate: $(`p${i}-empate`).checked }))
@@ -175,6 +177,34 @@
           detalle(id);
         } catch (err) { alert(err.message); }
       });
+    }
+
+    async function cargarEmbudo() {
+      let e;
+      try { e = await MC.api("GET", "/api/admin/embudo"); } catch (err) { return; }
+      const t = e.total, dc = e.discord || {};
+      const pct = (a, b) => (b ? Math.round(a * 100 / b) + "%" : "—");
+      const pasos = [
+        ["👀 Visitaron la página", t.visitantes, null],
+        ["📝 Crearon cuenta", t.cuentas, t.visitantes],
+        ["⚽ Jugaron la quiniela", t.jugaron, t.cuentas],
+        ["🔁 Jugaron 3 días o más", t.volvieron, t.jugaron],
+        ["👆 Dieron clic en Discord", t.clic_discord, t.visitantes],
+      ];
+      if (dc.usos_invitacion !== undefined && dc.usos_invitacion !== null) pasos.push(["🎮 Entraron al Discord con el enlace de la página (total histórico)", dc.usos_invitacion, null]);
+      const max = Math.max(1, ...pasos.map((p) => p[1]));
+      const fecha = (f) => new Date(f + "T12:00:00").toLocaleDateString("es-MX", { weekday: "short", day: "numeric" });
+      $("embudo").innerHTML = `<h2 class="titulo-sec">📊 ¿Cómo va la gente?</h2>
+        <p style="margin:0 0 10px">Últimos 7 días (personas distintas)${dc.miembros ? ` · <b>${dc.miembros}</b> miembros en tu Discord en total` : ""}</p>
+        ${pasos.map(([nom, n, base]) => `<div style="margin:8px 0">
+          <div style="display:flex;justify-content:space-between;gap:8px"><span>${nom}</span><b>${n}${base !== null ? ` <span style="color:var(--muted);font-weight:600">(${pct(n, base)})</span>` : ""}</b></div>
+          <div style="height:10px;background:var(--card2);border-radius:99px;overflow:hidden"><div style="height:100%;width:${Math.round(n * 100 / max)}%;background:var(--amarillo)"></div></div>
+        </div>`).join("")}
+        <p class="ayuda">El % compara con el paso de arriba (el de Discord compara con quienes visitaron). "Entraron al Discord" es el total desde que se creó el enlace (incluye a quien lo usó fuera de la página).</p>
+        <details><summary style="cursor:pointer;color:var(--amarillo);font-weight:700">Ver por día</summary>
+          <div style="overflow-x:auto"><table><thead><tr><th>Día</th><th>Visitas</th><th>Cuentas</th><th>Jugaron</th><th>Clic Discord</th></tr></thead><tbody>
+          ${e.dias.slice().reverse().map((d) => `<tr><td>${esc(fecha(d.fecha))}</td><td>${d.visitantes}</td><td>${d.cuentas}</td><td>${d.jugaron}</td><td>${d.clic_discord}</td></tr>`).join("")}
+          </tbody></table></div></details>`;
     }
 
     async function cargarAutomatico() {
