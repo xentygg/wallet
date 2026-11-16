@@ -8,6 +8,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { api, espera, CONFIG_PATH, SITIO } = require("./discord");
 const MARCA = require("./marca");
+const casinos = require("./discord-casinos");
 const REBRAND = process.argv.includes("--rebrand");
 const ARGS = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 
@@ -218,6 +219,11 @@ async function main() {
   await publicarSiVacio("anuncios", ANUNCIOS);
   await publicarSiVacio("quiniela", QUINIELA);
 
+  // 5b. Refill de bank (si la marca tiene casinos.json): canales por casino, tickets, pagos y filtro de enlaces
+  const extra = await casinos.configurar({ guildId, roles, canales, existentes, cfgPrevia, avisos, yoId: yoBot.id });
+  const automodEnlaces = extra.automod_enlaces; delete extra.automod_enlaces;
+  Object.assign(canales, extra);
+
   // 6. Ajustes del servidor: ícono, seguridad media, avisos de nuevos miembros en bienvenida
   const ajustes = { verification_level: 2, explicit_content_filter: 2, default_message_notifications: 1, system_channel_id: canales.bienvenida };
   const icono = [path.join(MARCA.dir, "discord-icono.png"), path.join(__dirname, "..", "deploy", "discord-icono.png")].find((f) => fs.existsSync(f));
@@ -239,7 +245,7 @@ async function main() {
   }
 
   fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify({ guild_id: guildId, canales, roles, invitacion }, null, 2));
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify({ guild_id: guildId, canales, roles, invitacion, ...(automodEnlaces ? { automod_enlaces: automodEnlaces } : {}) }, null, 2));
   fs.chmodSync(CONFIG_PATH, 0o644);
 
   console.log("\n============================================================");

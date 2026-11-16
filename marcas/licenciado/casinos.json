@@ -1,0 +1,10 @@
+{
+  "_nota": "Casinos del refill de bank en el Discord. 'enlace' vacío = el canal dice que se publica pronto. Después de cambiar algo, vuelve a correr discord-configurar.js.",
+  "casinos": [
+    { "clave": "winpot",   "nombre": "Winpot",   "canal": "💰・winpot",   "enlace": "https://winpot.me/El_licenciado", "video": true,  "verificacion": "opcional" },
+    { "clave": "sportium", "nombre": "Sportium", "canal": "💰・sportium", "enlace": "", "video": true,  "verificacion": "opcional" },
+    { "clave": "jugabet",  "nombre": "Jugabet",  "canal": "💰・jugabet",  "enlace": "", "video": false, "verificacion": "obligatoria" },
+    { "clave": "winner",   "nombre": "Winner",   "canal": "💰・winner",   "enlace": "", "video": true,  "verificacion": "opcional" },
+    { "clave": "stake",    "nombre": "Stake",    "canal": "💰・stake",    "enlace": "", "video": true,  "verificacion": "opcional", "aviso_edad": "Stake es estricto con la edad: si eres menor de 18 años, NO participes. Te pueden pedir identificación y cerrar tu cuenta." }
+  ]
+}
