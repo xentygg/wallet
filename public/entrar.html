@@ -73,7 +73,7 @@
     const volver = /^\/[a-z]*$/.test(params.get("volver") || "") ? params.get("volver") : "/quiniela";
 
     MC.montar("perfil").then((u) => { if (u) location.replace(volver); });
-    $("olvido").href = "https://wa.me/" + CONFIG.whatsappOrganizador + "?text=" + encodeURIComponent(`Hola ${CONFIG.saludo}, olvidé mi contraseña de la página.`);
+    $("olvido").href = MC.whatsapp(`Hola ${CONFIG.saludo}, olvidé mi contraseña de la página.`);
 
     function pestaña(nueva) {
       $("f-nueva").hidden = !nueva; $("f-entrar").hidden = nueva;

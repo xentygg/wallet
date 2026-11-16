@@ -165,7 +165,7 @@
     }
 
     // ---------- Comunidad, registro e invitaciones ----------
-    $("link-canal").href = "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent(`Hola ${C.saludo}, vengo de la página.`);
+    $("link-canal").href = MC.whatsapp(`Hola ${C.saludo}, vengo de la página.`);
     sesion.then(() => {
       $("discord-portada").innerHTML = MC.discord("grande");
       $("discord-final").innerHTML = MC.discord("corto", `¿Ya estás en el Discord ${C.de}?`);

@@ -25,6 +25,7 @@ window.CONFIG = {
 
   // Número de WhatsApp de la página (aquí llegan las quinielas y mensajes). Formato: 52 + 10 dígitos, sin "+" ni espacios
   whatsappOrganizador: "528442997625",
+  etiquetaWhatsApp: "[DON GATO 😎]",   // va al inicio de los mensajes que te llegan desde esta página
 
   // Registro a la plataforma: por ahora NO hay enlace en la página.
   // El botón abre un chat de WhatsApp con el número de arriba y tú das el enlace en persona.

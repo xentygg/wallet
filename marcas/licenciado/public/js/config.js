@@ -14,14 +14,15 @@ window.CONFIG = {
   responsable: "El Licenciado",   // PENDIENTE: nombre real del responsable de los datos (aviso de privacidad)
   eslogan: "Una quiniela gratis todos los días. Atínale a los 5 partidos y llévate el premio.",
 
-  twitter: "",                    // PENDIENTE: enlace a su perfil, p. ej. "https://x.com/usuario"
+  twitter: "https://x.com/ElLicenciadoT",
   tiktok: "",
   discord: "",                    // vacío = se usa el enlace que creó el bot en el servidor
   grupoWhatsApp: "",
-  whatsappOrganizador: "528442997625",   // PENDIENTE: confirmar a qué WhatsApp llegan dudas y premios
+  whatsappOrganizador: "528442997625",   // el mismo número que Don Gato
+  etiquetaWhatsApp: "[QUINIELA DEL LIC 🎩]",   // así sabes que el mensaje viene de esta página
 
   registro: {
-    activo: false,                // PENDIENTE: decidir si va la sección de registro a la plataforma
+    activo: false,                // apagada en esta página (decisión del dueño)
     titulo: "Únete a la plataforma y recibe tu compensación",
     descripcion: "Mándanos mensaje por WhatsApp y te ayudamos a registrarte paso a paso. Una cuenta por persona.",
     textoBoton: "Quiero registrarme",

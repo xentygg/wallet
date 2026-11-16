@@ -40,7 +40,13 @@
   function urlRegistro() {
     const origen = store.get("mc_ref_origen");
     const texto = C.registro.mensaje + (origen ? `\nMe invitó: ${origen}` : "");
-    return "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent(texto);
+    return whatsapp(texto);
+  }
+
+  // Chat con el WhatsApp de la página. La etiqueta al inicio dice de qué página viene el mensaje.
+  function whatsapp(texto) {
+    const t = `${C.etiquetaWhatsApp ? C.etiquetaWhatsApp + " " : ""}${texto || `Hola, vengo de ${C.marca}.`}`;
+    return "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent(t);
   }
 
   function compartirWhatsApp(texto, numero) {
@@ -78,7 +84,7 @@
       ${aviso}
       <p>${C.discord ? `<a href="${C.discord}" target="_blank" rel="noopener">Discord</a> · ` : ""}${C.tiktok ? `<a href="${C.tiktok}" target="_blank" rel="noopener">TikTok</a> · ` : ""}${C.grupoWhatsApp
         ? `<a href="${C.grupoWhatsApp}" target="_blank" rel="noopener">Grupo de WhatsApp</a>`
-        : `<a href="https://wa.me/${C.whatsappOrganizador}" target="_blank" rel="noopener">WhatsApp</a>`}
+        : `<a href="${whatsapp("Hola, tengo una duda.")}" target="_blank" rel="noopener">WhatsApp</a>`}
         · <a href="/bases">Bases de la quiniela</a> · <a href="/privacidad">Aviso de privacidad</a></p>
       ${C.twitter ? `<p><a href="${C.twitter}" target="_blank" rel="noopener">Síguelo en X (Twitter)</a></p>` : ""}
       <p class="mini">© ${new Date().getFullYear()} ${C.marca}. Trivias y quinielas gratuitas para la comunidad.</p>
@@ -157,5 +163,5 @@
     }, true);
   }
 
-  window.MC = { discord, store, api, esc, urlConMiRef, urlRegistro, compartirWhatsApp, gato, avatar, montar };
+  window.MC = { whatsapp, discord, store, api, esc, urlConMiRef, urlRegistro, compartirWhatsApp, gato, avatar, montar };
 })();
