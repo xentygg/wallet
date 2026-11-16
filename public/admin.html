@@ -10,7 +10,9 @@
   <link rel="icon" href="/img/perfil.webp">
   <style>
     .fila-partido { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 6px; margin-bottom: 8px; align-items: center; }
-    @media (max-width: 620px) { .fila-partido { grid-template-columns: 1fr 1fr; } }
+    .fila-partido > * { min-width: 0; }
+    .fila-3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 620px) { .fila-partido { grid-template-columns: 1fr 1fr; } .fila-3 { grid-template-columns: 1fr; } .fila-partido .empate { grid-column: 1 / -1; } }
     .empate { display: flex; gap: 6px; align-items: center; font-size: .85rem; white-space: nowrap; }
     .empate input { width: 18px; height: 18px; accent-color: var(--amarillo); }
     .entrada { border-top: 1px solid var(--line); padding: 12px 0; }
@@ -57,14 +59,15 @@
         <section class="card">
           <h2 class="titulo-sec">Quinielas</h2>
           <div class="lista-q">${d.quinielas.map((q) => `<a href="#q${q.id}" data-id="${q.id}">
-            <span><b>${esc(q.fecha)}</b>${q.fecha === d.hoy ? ' <span class="badge amarillo">HOY</span>' : ""}</span>
+            <span><b>${esc(q.fecha)}</b>${q.fecha === d.hoy ? ' <span class="badge amarillo">HOY</span>' : ""}${q.auto ? ' <span class="badge gris">auto</span>' : ""}</span>
             <span>${q.entradas} quinielas · ${q.calificada ? '<span class="badge verde">Calificada</span>' : '<span class="badge gris">Sin resultados</span>'}</span></a>`).join("") || "<p>Aún no hay quinielas.</p>"}</div>
           <div class="fila" style="margin-top:14px"><button class="btn btn-sec" id="ver-usuarios">Ver usuarios</button></div>
         </section>
+        <section class="card" id="auto"><h2 class="titulo-sec">🤖 Automático</h2><p>Cargando…</p></section>
         <section class="card">
           <h2 class="titulo-sec">Publicar nueva quiniela</h2>
           <form id="nueva" class="form">
-            <div class="fila-partido" style="grid-template-columns:1fr 1fr 1fr">
+            <div class="fila-partido fila-3">
               <div><label>Fecha</label><input type="date" id="n-fecha" value="${tieneHoy ? manana : d.hoy}"></div>
               <div><label>Cierre (hora de tu celular)</label><input type="datetime-local" id="n-cierre"></div>
               <div><label>Premio ($)</label><input type="number" id="n-premio" value="300" min="0"></div>
@@ -82,6 +85,7 @@
         </section>`;
       document.querySelectorAll(".lista-q a").forEach((a) => a.onclick = (e) => { e.preventDefault(); detalle(a.dataset.id); });
       $("ver-usuarios").onclick = usuarios;
+      cargarAutomatico();
       $("nueva").onsubmit = async (e) => {
         e.preventDefault();
         const partidos = [1, 2, 3, 4, 5].map((i) => ({ liga: $(`p${i}-liga`).value, local: $(`p${i}-local`).value, visita: $(`p${i}-visita`).value, hora: $(`p${i}-hora`).value, empate: $(`p${i}-empate`).checked }))
@@ -152,6 +156,24 @@
           detalle(id);
         } catch (err) { alert(err.message); }
       });
+    }
+
+    async function cargarAutomatico() {
+      let a;
+      try { a = await MC.api("GET", "/api/admin/automatico"); } catch (e) { return; }
+      const iconos = { quiniela: "📋", resultado: "⚽", ganador: "🏆", calificada: "✅", aviso: "⚠️", error: "❌", inicio: "🔌" };
+      const hora = (t) => new Date(t.replace(" ", "T") + "Z").toLocaleString("es-MX", { timeZone: "America/Mexico_City", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+      $("auto").innerHTML = `<h2 class="titulo-sec">🤖 Automático</h2>
+        ${a.activo ? `<div class="exito">Encendido: la quiniela de mañana se publica sola cada tarde y los resultados se califican solos.</div>`
+          : `<div class="aviso">Apagado: falta la clave de API-Football en el servidor.</div>`}
+        <div class="fila" style="justify-content:flex-start;margin:12px 0"><button class="btn btn-sec mini-btn" id="auto-ahora" ${a.activo ? "" : "disabled"}>Revisar ahora</button></div>
+        <div>${a.log.map((l) => `<div style="padding:7px 0;border-bottom:1px solid var(--line);font-size:.9rem">
+          ${iconos[l.tipo] || "•"} <span style="color:var(--muted)">${esc(hora(l.creado))}</span> · ${esc(l.mensaje)}</div>`).join("") || "<p>Sin actividad todavía.</p>"}</div>`;
+      if ($("auto-ahora")) $("auto-ahora").onclick = async (e) => {
+        e.target.disabled = true; e.target.textContent = "Revisando…";
+        try { await MC.api("POST", "/api/admin/automatico/ahora", {}); } catch (err) { alert(err.message); }
+        inicio();
+      };
     }
 
     async function usuarios() {

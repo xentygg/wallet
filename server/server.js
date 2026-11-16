@@ -169,7 +169,7 @@ function quinielaPublica(q, usuario) {
     id: q.id, fecha: q.fecha, cierre: q.cierre, premio: q.premio, calificada: !!q.calificada,
     cerrada: Date.now() >= Date.parse(q.cierre),
     participantes: db.prepare("SELECT COUNT(*) n FROM entradas WHERE quiniela_id = ? AND anulada = 0").get(q.id).n,
-    partidos: ps.map((p) => ({ id: p.id, liga: p.liga, local: p.local, visita: p.visita, hora: p.hora, empate: !!p.empate, resultado: q.calificada ? p.resultado : null })),
+    partidos: ps.map((p) => ({ id: p.id, liga: p.liga, local: p.local, visita: p.visita, hora: p.hora, empate: !!p.empate, resultado: Date.now() >= Date.parse(q.cierre) ? p.resultado : null })),
   };
   if (usuario) {
     const e = db.prepare("SELECT picks, aciertos, anulada FROM entradas WHERE quiniela_id = ? AND usuario_id = ?").get(q.id, usuario.id);
@@ -260,10 +260,16 @@ ruta("GET", "/api/perfil", async (req, res) => {
 // --- quiniela
 ruta("GET", "/api/quiniela", async (req, res) => {
   const u = usuarioDe(req);
-  const hoy = fechaMX();
-  const q = db.prepare("SELECT * FROM quinielas WHERE fecha = ?").get(hoy)
-         || db.prepare("SELECT * FROM quinielas WHERE fecha > ? ORDER BY fecha LIMIT 1").get(hoy);
-  responder(res, 200, { hoy, quiniela: q ? quinielaPublica(q, u) : null, sesion: !!u });
+  const hoy = fechaMX(), ahora = new Date().toISOString();
+  // La que se puede jugar (la próxima en cerrar) y la que ya cerró y sigue en juego o terminó hoy
+  const abierta = db.prepare("SELECT * FROM quinielas WHERE cierre > ? ORDER BY cierre LIMIT 1").get(ahora);
+  const enJuego = db.prepare("SELECT * FROM quinielas WHERE cierre <= ? AND (calificada = 0 OR fecha = ?) ORDER BY cierre DESC LIMIT 1").get(ahora, hoy);
+  const principal = abierta || enJuego;
+  responder(res, 200, {
+    hoy, sesion: !!u,
+    quiniela: principal ? quinielaPublica(principal, u) : null,
+    enJuego: abierta && enJuego ? quinielaPublica(enJuego, u) : null,
+  });
 });
 
 ruta("POST", "/api/quiniela/:id/enviar", async (req, res, p) => {
@@ -470,5 +476,23 @@ process.on("unhandledRejection", (e) => console.error("Promesa rechazada:", e));
 // Limpieza de sesiones vencidas cada hora
 setInterval(() => db.prepare("DELETE FROM sesiones WHERE expira < ?").run(new Date().toISOString()), 3600000).unref();
 
-servidor.listen(PORT, "127.0.0.1", () => console.log(`Don Gato escuchando en http://127.0.0.1:${PORT}`));
-module.exports = { servidor, normalizarTelefono, rachas, lunesDe };
+// Estado de la quiniela automática (para el panel)
+ruta("GET", "/api/admin/automatico", async (req, res) => {
+  requiereAdmin(req);
+  responder(res, 200, {
+    activo: automatico.activo(),
+    log: db.prepare("SELECT creado, tipo, mensaje FROM auto_log ORDER BY id DESC LIMIT 40").all(),
+  });
+});
+ruta("POST", "/api/admin/automatico/ahora", async (req, res) => {
+  requiereAdmin(req);
+  await automatico.ciclo(true);
+  responder(res, 200, { ok: true });
+});
+
+module.exports = { servidor, normalizarTelefono, rachas, lunesDe, calificar, partidosDe, fechaMX, sumarDias };
+const automatico = require("./automatico");
+servidor.listen(PORT, "127.0.0.1", () => {
+  console.log(`Don Gato escuchando en http://127.0.0.1:${PORT}`);
+  automatico.iniciar({ calificar, fechaMX, sumarDias });
+});

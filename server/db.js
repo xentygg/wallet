@@ -79,5 +79,11 @@ CREATE INDEX IF NOT EXISTS idx_usuarios_ip ON usuarios(ip);
 // Actualizaciones de la base de datos (se aplican solas una vez)
 const columnas = db.prepare("PRAGMA table_info(partidos)").all().map((c) => c.name);
 if (!columnas.includes("empate")) db.exec("ALTER TABLE partidos ADD COLUMN empate INTEGER NOT NULL DEFAULT 1"); // 0 = sin empate (NFL, NBA, béisbol)
+if (!columnas.includes("fixture_id")) db.exec("ALTER TABLE partidos ADD COLUMN fixture_id INTEGER"); // id del partido en API-Football (quinielas automáticas)
+const colQ = db.prepare("PRAGMA table_info(quinielas)").all().map((c) => c.name);
+if (!colQ.includes("auto")) db.exec("ALTER TABLE quinielas ADD COLUMN auto INTEGER NOT NULL DEFAULT 0");
+db.exec(`CREATE TABLE IF NOT EXISTS auto_log (
+  id INTEGER PRIMARY KEY, creado TEXT NOT NULL DEFAULT (datetime('now')), tipo TEXT NOT NULL, mensaje TEXT NOT NULL
+)`);
 
 module.exports = db;

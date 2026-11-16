@@ -110,6 +110,26 @@
 
   pintar();
 
+  // La quiniela que ya cerró y sigue en juego (cuando ya está abierta la del día siguiente)
+  const ej = datos.enJuego;
+  if (ej) {
+    const total = ej.partidos.length, mia = ej.mia;
+    const listos = ej.partidos.filter((p) => p.resultado).length;
+    $("en-juego").hidden = false;
+    $("en-juego").innerHTML = `
+      <h2 class="titulo-sec">⏱️ En juego: quiniela del ${esc(fmtFecha(ej.fecha))}</h2>
+      <p style="margin:0 0 8px">${ej.calificada ? "Terminada." : `Van ${listos} de ${total} resultados.`} ${ej.participantes} participantes.</p>
+      ${ej.partidos.map((p) => {
+        const mio = mia && mia.picks[p.id];
+        const ok = p.resultado && mio && (p.resultado === "C" || p.resultado === mio);
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)">
+          <span>${esc(p.local)} vs ${esc(p.visita)}</span>
+          <span>${mio ? `Tú: <b>${mio}</b> · ` : ""}${p.resultado ? `<span class="badge ${mio ? (ok ? "verde" : "rojo") : "gris"}">${NOMBRES[p.resultado]}</span>` : '<span class="badge gris">Pendiente</span>'}</span>
+        </div>`;
+      }).join("")}
+      ${ej.calificada && ej.ganadores ? `<p style="margin-top:12px">${ej.ganadores.length ? `🏆 ${ej.ganadores.map((g) => `${esc(g.apodo)} (${pesos(g.monto)})`).join(", ")}` : "Nadie le atinó a todos."}</p>` : ""}`;
+  }
+
   // Tabla semanal y resultados anteriores
   MC.api("GET", "/api/tabla").then((t) => {
     $("tabla").innerHTML = t.tabla.map((f, i) => `<tr><td>${["🥇", "🥈", "🥉"][i] || i + 1}</td><td>${esc(f.apodo)}</td><td class="num">${f.puntos}</td></tr>`).join("")

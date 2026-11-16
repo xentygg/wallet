@@ -31,11 +31,26 @@ La primera vez muestra la **contraseña del panel**: guárdala. Para actualizar 
 - La base de datos está en `/var/lib/dongato/dongato.db` y se respalda cada día en `/var/lib/dongato/respaldos/` (se guardan 30 días).
 - Ver errores: `journalctl -u dongato -n 50`
 
+## Quiniela automática (API-Football)
+
+Con la clave de API-Football en el servidor, la página trabaja sola:
+
+- A partir de las 17:00 (CDMX) publica la quiniela del día siguiente: 5 partidos, primero Liga MX y luego las demás ligas en orden (`server/ajustes-automatico.js`). Prefiere partidos desde las 11:00 y cierra 10 minutos antes del primero.
+- Revisa resultados cada 20 minutos después del cierre y califica sola. Cuenta el marcador a los 90 minutos; los suspendidos o cancelados cuentan como acierto para todos.
+- Todo queda anotado en la sección **Automático** del panel, incluidos los ganadores.
+- Si un día ya publicaste una quiniela a mano, no la reemplaza.
+
+Guardar la clave (en la consola del servidor; la clave no se ve al pegarla):
+
+```bash
+read -s -p "Pega tu clave de API-Football y presiona Enter: " K; echo; sed -i '/^API_FOOTBALL_KEY=/d' /etc/dongato.env; echo "API_FOOTBALL_KEY=$K" >> /etc/dongato.env; systemctl restart dongato; echo "Clave guardada."
+```
+
 ## Rutina diaria
 
-1. Entra a `/admin` y publica la quiniela del día: 5 partidos y la hora de cierre (antes del primer partido).
+1. Con la quiniela automática no hace falta publicar nada. Si está apagada: entra a `/admin` y publica la quiniela del día (5 partidos y la hora de cierre, antes del primer partido).
 2. Anúnciala en TikTok: "Atínale a los 5 y gánate $300, gratis".
-3. Cuando terminen los partidos, mete los resultados en el panel. Se califica sola. (El panel no deja meterlos antes del cierre.)
+3. Los resultados se meten solos (automático) o a mano en el panel después del cierre. Se califica sola.
 4. Si hay ganador: revisa las alertas, pídele su INE por WhatsApp (botón "Avisarle"), paga y marca "Pagado".
 
 ## Probar en tu computadora
