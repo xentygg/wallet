@@ -67,7 +67,18 @@ frases = {
     "despedidas": [{"titulo": " ".join(t), "letrero": l} for t, l, _ in P.DESPEDIDAS if web(" ".join(t) + l)],
 }
 
+# Datos curiosos para la portada: los "¿Sabías que…?" y las preguntas con su respuesta y dato
+datos = []
+for f in sorted((origen / "trivias").glob("*.yaml")):
+    t = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+    if t.get("formato") == "sabias_que":
+        datos += [{"texto": str(q["dato"])} for q in t.get("preguntas", []) if q.get("dato")]
+for q in preguntas:
+    if q["dato"] and not q["p"].startswith("¿Verdadero o falso?"):
+        datos.append({"pregunta": q["p"], "respuesta": q["o"][q["correcta"]], "texto": q["dato"]})
+
 cab = "// Generado por tools/importar_trivias.py desde el proyecto de TikTok. No editar a mano.\n"
 (destino / "preguntas.js").write_text(cab + "window.PREGUNTAS = " + json.dumps(preguntas, ensure_ascii=False, indent=1) + ";\n", encoding="utf-8")
+(destino / "datos.js").write_text(cab + "window.DATOS = " + json.dumps(datos, ensure_ascii=False, indent=1) + ";\n", encoding="utf-8")
 (destino / "frases.js").write_text(cab + "window.FRASES = " + json.dumps(frases, ensure_ascii=False, indent=1) + ";\n", encoding="utf-8")
-print(f"{len(preguntas)} preguntas y {sum(len(v) for v in frases.values())} frases importadas.")
+print(f"{len(preguntas)} preguntas, {len(datos)} datos curiosos y {sum(len(v) for v in frases.values())} frases importadas.")

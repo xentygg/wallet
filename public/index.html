@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{marca} — Trivias y quinielas deportivas</title>
-  <meta name="description" content="Trivia deportiva diaria, quinielas gratis y datos curiosos con Don Gato.">
+  <title>{marca} — Quiniela diaria y trivias deportivas</title>
+  <meta name="description" content="Quiniela diaria gratis: atínale a los 5 partidos y gánate $300. Trivia deportiva y datos curiosos con Don Gato.">
   <link rel="preload" href="/fonts/TikTokSans.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="icon" href="/img/perfil.webp">
@@ -13,16 +13,40 @@
   <div id="header"></div>
 
   <main class="wrap">
-    <div class="hero">
+    <div class="hero hero-compacto">
       <div id="gato-hero"></div>
-      <h1>¿Sabes de deportes<br><span class="amarillo">o nomás opinas?</span></h1>
-      <span class="letrero">Aquí no hay VAR que te salve</span>
-      <p id="eslogan"></p>
-      <div class="fila">
-        <a class="btn btn-pri" href="/trivia">🧠 Jugar la trivia de hoy</a>
-        <a class="btn btn-sec" href="/quiniela">⚽ Quiniela: gana $300</a>
+      <div>
+        <h1>¿Sabes de deportes<br><span class="amarillo">o nomás opinas?</span></h1>
+        <span class="letrero">Aquí no hay VAR que te salve</span>
+        <p id="eslogan"></p>
       </div>
     </div>
+
+    <div class="tira" id="tira" hidden></div>
+
+    <!-- Quiniela de hoy -->
+    <section class="card" id="hoy">
+      <p style="color:var(--muted)">Cargando la quiniela de hoy…</p>
+    </section>
+
+    <!-- Cómo funciona -->
+    <section>
+      <h2 class="titulo-sec">¿Cómo funciona?</h2>
+      <div class="pasos">
+        <div class="paso"><b>1</b><div><h3>Crea tu cuenta gratis</h3><p>Con tu celular. Una cuenta por persona.</p></div></div>
+        <div class="paso"><b>2</b><div><h3>Llena 5 partidos</h3><p>Elige quién gana o si empatan. Una quiniela al día.</p></div></div>
+        <div class="paso"><b>3</b><div><h3>Atínale a todos y gana</h3><p>Premio diario de $300. Te pagamos por transferencia.</p></div></div>
+      </div>
+    </section>
+
+    <!-- Muro de ganadores -->
+    <section class="card">
+      <h2 class="titulo-sec">🏆 Muro de ganadores</h2>
+      <div id="muro"><p>Cargando…</p></div>
+    </section>
+
+    <!-- Dato curioso -->
+    <section class="card dato-dia" id="dato" hidden></section>
 
     <div class="grid">
       <div class="card">
@@ -30,12 +54,6 @@
         <h3>Trivia diaria</h3>
         <p>5 preguntas nuevas cada día. Compara tu resultado con tus amigos.</p>
         <a class="btn btn-sec" href="/trivia">Jugar</a>
-      </div>
-      <div class="card">
-        <div class="ico">🏆</div>
-        <h3>Quiniela gratis</h3>
-        <p>5 partidos cada día. Atínale a todos y gánate $300. Gratis, una por persona al día.</p>
-        <a class="btn btn-sec" href="/quiniela">Participar</a>
       </div>
       <div class="card">
         <div class="ico">📱</div>
@@ -74,46 +92,105 @@
 
   <script src="/js/config.js"></script>
   <script src="/js/common.js"></script>
+  <script src="/data/datos.js"></script>
   <script>
-    const C = window.CONFIG;
+    const C = window.CONFIG, esc = MC.esc, $ = (id) => document.getElementById(id);
+    const pesos = (n) => "$" + Number(n).toLocaleString("es-MX");
     const sesion = MC.montar("inicio");
-    document.getElementById("gato-hero").innerHTML = MC.gato;
-    document.getElementById("eslogan").textContent = C.eslogan;
-    document.getElementById("link-tiktok").href = C.tiktok;
-    const canal = document.getElementById("link-canal");
-    if (C.grupoWhatsApp) {
-      canal.href = C.grupoWhatsApp;
-    } else {
-      // Mientras el grupo esté deshabilitado: se avisa que viene pronto y se ofrece escribir directo
-      document.getElementById("canal-texto").textContent = "El grupo de WhatsApp abre muy pronto. Mientras, escríbele directo a Don Gato.";
+    $("gato-hero").innerHTML = MC.gato;
+    $("eslogan").textContent = C.eslogan;
+    $("link-tiktok").href = C.tiktok;
+
+    // ---------- Quiniela de hoy, números y muro de ganadores ----------
+    MC.api("GET", "/api/portada").then((d) => {
+      const q = d.quiniela;
+      if (q) {
+        const cierre = Date.parse(q.cierre);
+        $("hoy").innerHTML = `
+          <h2 class="titulo-sec">⚽ La quiniela de hoy</h2>
+          <div class="premio">
+            <div><small>PREMIO</small><div class="monto">${pesos(q.premio)}</div></div>
+            <div style="text-align:right;font-weight:700">Cierra en<br><span id="cuenta-hoy" class="cuenta-negra"></span></div>
+          </div>
+          <div>${q.partidos.map((p) => `<div class="mini-partido">
+            <span class="liga-chip">${esc(p.liga || "")}</span>
+            <span><b>${esc(p.local)}</b> vs <b>${esc(p.visita)}</b></span>
+            <span class="hora">${esc(p.hora || "")}</span></div>`).join("")}</div>
+          <p style="margin:12px 0">${q.participantes ? `<b class="amarillo">${q.participantes}</b> ${q.participantes === 1 ? "persona ya jugó" : "personas ya jugaron"}.` : "¡Sé de los primeros en jugar!"}</p>
+          <div class="fila">${q.mia ? `<a class="btn btn-sec" href="/quiniela">✅ Ya jugaste · Ver mi quiniela</a>` : `<a class="btn btn-pri" href="/quiniela">Jugar ahora gratis</a>`}</div>`;
+        const tick = () => {
+          const ms = cierre - Date.now(), el = $("cuenta-hoy");
+          if (!el) return;
+          if (ms <= 0) { el.textContent = "¡cerró!"; return clearInterval(t); }
+          const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
+          el.textContent = `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+        };
+        const t = setInterval(tick, 1000); tick();
+      } else {
+        $("hoy").innerHTML = `
+          <h2 class="titulo-sec">⚽ La quiniela de hoy</h2>
+          <p>La próxima quiniela se publica <b>todos los días a partir de las 5:00 pm</b>. Mientras, revisa cómo te fue en la <a href="/quiniela">última</a>.</p>
+          <div class="fila"><a class="btn btn-pri" href="/trivia">Jugar la trivia mientras</a></div>`;
+      }
+
+      const tira = [`<div><b>${d.jugadores}</b><span>jugadores</span></div>`, `<div><b>${pesos(q ? q.premio : 300)}</b><span>premio diario</span></div>`];
+      if (d.pagado > 0) tira.push(`<div><b>${pesos(d.pagado)}</b><span>pagados en premios</span></div>`);
+      else if (d.ganadores > 0) tira.push(`<div><b>${d.ganadores}</b><span>ganadores</span></div>`);
+      $("tira").innerHTML = tira.join(""); $("tira").hidden = false;
+
+      $("muro").innerHTML = d.muro.length
+        ? `${d.pagado > 0 ? `<p>Ya entregamos <b class="amarillo">${pesos(d.pagado)}</b> en premios a ${d.ganadores} ganador${d.ganadores === 1 ? "" : "es"}.</p>` : ""}
+           ${d.muro.map((g) => `<div class="ganador-fila">
+             <span>🏆 <b>${esc(g.apodo)}</b></span>
+             <span style="color:var(--muted)">${esc(new Date(g.fecha + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short" }))}</span>
+             <span><b class="amarillo">${pesos(g.monto)}</b> ${g.pagado ? '<span class="badge verde">Pagado</span>' : '<span class="badge gris">En proceso</span>'}</span></div>`).join("")}`
+        : `<p>Todavía no hay ganadores. <b>El primero puedes ser tú.</b></p><div class="fila" style="justify-content:flex-start"><a class="btn btn-pri" href="/quiniela">Jugar la quiniela</a></div>`;
+    }).catch(() => { $("hoy").innerHTML = `<h2 class="titulo-sec">⚽ La quiniela de hoy</h2><p><a href="/quiniela">Ver la quiniela</a></p>`; $("muro").innerHTML = ""; });
+
+    // ---------- Dato curioso del día (de los videos de Don Gato) ----------
+    if (window.DATOS && DATOS.length) {
+      const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date());
+      const n = Math.floor(Date.parse(hoy + "T00:00:00Z") / 86400000);
+      const dt = DATOS[(n * 37) % DATOS.length];
+      $("dato").innerHTML = `
+        <div class="gato-dice" style="margin:0;border:0;background:transparent;padding:0">${MC.avatar}
+          <div><span class="letrero" style="font-size:.8rem">Dato curioso de Don Gato</span>
+          ${dt.pregunta ? `<p style="margin:10px 0 4px;color:var(--txt);font-weight:700">${esc(dt.pregunta)}</p>
+            <details><summary>Ver respuesta</summary><p style="margin:6px 0 0"><b class="amarillo">${esc(dt.respuesta)}.</b> ${esc(dt.texto)}</p></details>`
+          : `<p style="margin:10px 0 0;color:var(--txt);font-weight:700">¿Sabías que… ${esc(dt.texto.charAt(0).toLowerCase() + dt.texto.slice(1))}?</p>`}
+          </div></div>`;
+      $("dato").hidden = false;
+    }
+
+    // ---------- Comunidad, registro e invitaciones ----------
+    const canal = $("link-canal");
+    if (C.grupoWhatsApp) canal.href = C.grupoWhatsApp;
+    else {
+      $("canal-texto").textContent = "El grupo de WhatsApp abre muy pronto. Mientras, escríbele directo a Don Gato.";
       canal.textContent = "Escribir por WhatsApp";
       canal.href = "https://wa.me/" + C.whatsappOrganizador + "?text=" + encodeURIComponent("Hola Don Gato 😎, vengo de la página.");
     }
-
     if (C.registro.activo) {
-      document.getElementById("registro").hidden = false;
-      document.getElementById("reg-titulo").textContent = C.registro.titulo;
-      document.getElementById("reg-desc").textContent = C.registro.descripcion;
-      const b = document.getElementById("reg-btn");
-      b.textContent = C.registro.textoBoton;
-      b.href = MC.urlRegistro();
-      document.getElementById("reg-aviso").hidden = !C.registro.soloMayores;
+      $("registro").hidden = false;
+      $("reg-titulo").textContent = C.registro.titulo;
+      $("reg-desc").textContent = C.registro.descripcion;
+      $("reg-btn").textContent = C.registro.textoBoton;
+      $("reg-btn").href = MC.urlRegistro();
+      $("reg-aviso").hidden = !C.registro.soloMayores;
     }
-
     sesion.then((usuario) => {
+      $("mi-link").value = MC.urlConMiRef("/");
       if (usuario) return;
-      document.getElementById("ref-texto").textContent = "Crea tu cuenta y te damos tu enlace personal para invitar a tus compas.";
-      document.getElementById("ref-box").hidden = true;
-      document.getElementById("ref-crear").hidden = false;
+      $("ref-texto").textContent = "Crea tu cuenta y te damos tu enlace personal para invitar a tus compas.";
+      $("ref-box").hidden = true;
+      $("ref-crear").hidden = false;
     });
-    const inp = document.getElementById("mi-link");
-    sesion.then(() => { inp.value = MC.urlConMiRef("/"); });
-    document.getElementById("copiar").onclick = async (e) => {
-      try { await navigator.clipboard.writeText(inp.value); } catch (_) { inp.select(); document.execCommand("copy"); }
+    $("copiar").onclick = async (e) => {
+      try { await navigator.clipboard.writeText($("mi-link").value); } catch (_) { $("mi-link").select(); document.execCommand("copy"); }
       e.target.textContent = "¡Copiado!";
     };
-    document.getElementById("compartir").onclick = () =>
-      MC.compartirWhatsApp(`😎 ¿Sabes de deportes o nomás opinas? Juega la trivia diaria y la quiniela gratis de ${C.marca}: ${inp.value}`);
+    $("compartir").onclick = () =>
+      MC.compartirWhatsApp(`😎 Quiniela gratis de ${C.marca}: atínale a los 5 partidos y gánate $300. Entra aquí: ${$("mi-link").value}`);
   </script>
 </body>
 </html>

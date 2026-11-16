@@ -52,6 +52,11 @@
       </section>
 
       <section class="card">
+        <h2 class="titulo-sec">Logros (${p.logros.filter((l) => l.ok).length} de ${p.logros.length})</h2>
+        <div class="logros">${p.logros.map((l) => `<div class="logro ${l.ok ? "si" : "no"}"><span class="i">${l.icono}</span><b>${esc(l.nombre)}</b><small>${esc(l.desc)}</small></div>`).join("")}</div>
+      </section>
+
+      <section class="card">
         <h2 class="titulo-sec">Historial de quinielas</h2>
         ${p.historial.length ? `<table><thead><tr><th>Fecha</th><th>Aciertos</th><th style="text-align:right">Premio</th></tr></thead><tbody>
           ${p.historial.map((h) => `<tr>

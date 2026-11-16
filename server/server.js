@@ -193,7 +193,18 @@ function quinielaPublica(q, usuario) {
   }
   const r = reglasDe(q.id);
   out.premio_cancelado = q.premio_cancelado;
-  if (out.cerrada) Object.assign(out, { cancelados: r.cancelados, anulada: r.anulada, premio_final: r.anulada ? 0 : r.premio, total_goles: r.totalGoles });
+  if (out.cerrada) {
+    Object.assign(out, { cancelados: r.cancelados, anulada: r.anulada, premio_final: r.anulada ? 0 : r.premio, total_goles: r.totalGoles });
+    // ¿Qué eligió la gente? Porcentaje de L/E/V por partido (solo después del cierre)
+    const conteo = {};
+    for (const e of db.prepare("SELECT picks FROM entradas WHERE quiniela_id = ? AND anulada = 0").all(q.id)) {
+      for (const [pid, v] of Object.entries(JSON.parse(e.picks))) (conteo[pid] ||= { L: 0, E: 0, V: 0 })[v]++;
+    }
+    for (const p of out.partidos) {
+      const c = conteo[p.id] || { L: 0, E: 0, V: 0 }, n = c.L + c.E + c.V;
+      p.reparto = n ? { L: Math.round(c.L * 100 / n), E: Math.round(c.E * 100 / n), V: Math.round(c.V * 100 / n), n } : null;
+    }
+  }
   if (q.calificada) out.ganadores = ganadoresDe(q).map((g) => ({ apodo: g.apodo, monto: g.monto, empatados: g.empatados }));
   return out;
 }
@@ -266,11 +277,28 @@ ruta("GET", "/api/perfil", async (req, res) => {
   }
   const trivia = db.prepare("SELECT COUNT(*) dias, COALESCE(SUM(aciertos),0) aciertos, COALESCE(SUM(total),0) total FROM trivia WHERE usuario_id = ?").get(u.id);
   const triviaHoy = db.prepare("SELECT aciertos, total FROM trivia WHERE usuario_id = ? AND fecha = ?").get(u.id, fechaMX());
+  const racha = rachas(u.id);
+  const invitados = db.prepare("SELECT COUNT(*) n FROM usuarios WHERE invitado_por = ?").get(u.ref_code).n;
+  const casi = hist.some((h) => h.calificada && !h.anulada && h.aciertos === h.total - 1);
+  const triviaPerfecta = !!db.prepare("SELECT 1 FROM trivia WHERE usuario_id = ? AND aciertos = total").get(u.id);
+  const logros = [
+    { icono: "⚽", nombre: "Debut", desc: "Juega tu primera quiniela", ok: hist.length >= 1 },
+    { icono: "🔥", nombre: "En racha", desc: "Juega 3 días seguidos", ok: racha.mejor >= 3 },
+    { icono: "📅", nombre: "Semana completa", desc: "Juega 7 días seguidos", ok: racha.mejor >= 7 },
+    { icono: "🗓️", nombre: "Fiel a Don Gato", desc: "Juega 30 días seguidos", ok: racha.mejor >= 30 },
+    { icono: "😬", nombre: "A una del premio", desc: "Atínale a todos menos uno", ok: casi || perfectas > 0 },
+    { icono: "🎯", nombre: "Perfecta", desc: "Atínale a todos los partidos", ok: perfectas > 0 },
+    { icono: "🏆", nombre: "Campeón", desc: "Gana un premio", ok: premios > 0 },
+    { icono: "🔟", nombre: "Veterano", desc: "Juega 10 quinielas", ok: hist.length >= 10 },
+    { icono: "🧠", nombre: "Sabelotodo", desc: "Saca 5 de 5 en la trivia", ok: triviaPerfecta },
+    { icono: "🤝", nombre: "Buen compa", desc: "Invita a 1 amigo", ok: invitados >= 1 },
+    { icono: "📣", nombre: "Influencer", desc: "Invita a 5 amigos", ok: invitados >= 5 },
+  ];
   responder(res, 200, {
     apodo: u.apodo, nombre: u.nombre, telefono: u.telefono.replace(/^(\d{3})\d{4}(\d{3})$/, "$1 **** $2"),
     desde: u.creado.slice(0, 10), ref_code: u.ref_code,
-    invitados: db.prepare("SELECT COUNT(*) n FROM usuarios WHERE invitado_por = ?").get(u.ref_code).n,
-    quinielas: hist.length, perfectas, aciertos, premios, racha: rachas(u.id),
+    invitados,
+    quinielas: hist.length, perfectas, aciertos, premios, racha, logros,
     historial: hist.slice(0, 30).map((h) => ({ fecha: h.fecha, aciertos: h.calificada ? h.aciertos : null, total: h.total, anulada: !!h.anulada, gano: h.gano || 0, pagado: !!h.pagado })),
     trivia: { ...trivia, hoy: triviaHoy || null },
   });
@@ -309,6 +337,26 @@ ruta("POST", "/api/quiniela/:id/enviar", async (req, res, p) => {
   db.prepare("INSERT INTO entradas (quiniela_id, usuario_id, picks, goles, ip, agente) VALUES (?, ?, ?, ?, ?, ?)")
     .run(q.id, u.id, JSON.stringify(picks), goles, ipDe(req), limpiar(req.headers["user-agent"], 300));
   responder(res, 201, { ok: true });
+});
+
+// Portada: quiniela abierta, muro de ganadores y números de la comunidad
+ruta("GET", "/api/portada", async (req, res) => {
+  const ahora = new Date().toISOString();
+  const abierta = db.prepare("SELECT * FROM quinielas WHERE cierre > ? ORDER BY cierre LIMIT 1").get(ahora);
+  const muro = [];
+  let pagado = 0, ganadores = 0;
+  for (const q of db.prepare("SELECT * FROM quinielas WHERE calificada = 1 ORDER BY fecha DESC LIMIT 400").all()) {
+    for (const g of ganadoresDe(q)) {
+      ganadores++;
+      if (g.pagado) pagado += g.monto;
+      if (muro.length < 10) muro.push({ apodo: g.apodo, fecha: q.fecha, monto: g.monto, pagado: !!g.pagado });
+    }
+  }
+  responder(res, 200, {
+    quiniela: abierta ? quinielaPublica(abierta, usuarioDe(req)) : null,
+    muro, pagado, ganadores,
+    jugadores: db.prepare("SELECT COUNT(*) n FROM usuarios WHERE bloqueado = 0").get().n,
+  });
 });
 
 ruta("GET", "/api/resultados", async (req, res) => {
@@ -408,17 +456,21 @@ ruta("POST", "/api/admin/quinielas/:id/resultados", async (req, res, p) => {
   const q = db.prepare("SELECT cierre FROM quinielas WHERE id = ?").get(qid) || falla(404, "No existe.");
   if (Date.now() < Date.parse(q.cierre)) falla(400, "La quiniela sigue abierta. Mete los resultados después de la hora de cierre.");
   // Cada partido: { local, visita } (marcador al final del tiempo reglamentario), { cancelado: true } o vacío (pendiente)
-  const upd = db.prepare("UPDATE partidos SET resultado = ?, goles_local = ?, goles_visita = ? WHERE id = ? AND quiniela_id = ?");
+  // Primero se revisan todos; solo si todos están bien se guardan (todo o nada)
+  const cambios = [];
   for (const pt of partidosDe(qid)) {
     const m = (b.marcadores || {})[pt.id] || {};
-    if (m.cancelado) { upd.run("C", null, null, pt.id, qid); continue; }
+    if (m.cancelado) { cambios.push(["C", null, null, pt.id]); continue; }
     const gl = m.local === "" || m.local === null || m.local === undefined ? null : Number(m.local);
     const gv = m.visita === "" || m.visita === null || m.visita === undefined ? null : Number(m.visita);
-    if (gl === null || gv === null) { upd.run(null, null, null, pt.id, qid); continue; }
+    if (gl === null || gv === null) { cambios.push([null, null, null, pt.id]); continue; }
     if (![gl, gv].every((x) => Number.isInteger(x) && x >= 0 && x <= 200)) falla(400, `Marcador no válido en ${pt.local} vs ${pt.visita}.`);
     if (!pt.empate && gl === gv) falla(400, `${pt.local} vs ${pt.visita} no admite empate: pon el marcador final o márcalo como cancelado.`);
-    upd.run(gl > gv ? "L" : gl < gv ? "V" : "E", gl, gv, pt.id, qid);
+    cambios.push([gl > gv ? "L" : gl < gv ? "V" : "E", gl, gv, pt.id]);
   }
+  const upd = db.prepare("UPDATE partidos SET resultado = ?, goles_local = ?, goles_visita = ? WHERE id = ? AND quiniela_id = ?");
+  db.exec("BEGIN");
+  try { for (const c of cambios) upd.run(...c, qid); db.exec("COMMIT"); } catch (e) { db.exec("ROLLBACK"); throw e; }
   responder(res, 200, { ok: true, calificada: calificar(qid) });
 });
 

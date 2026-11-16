@@ -14,6 +14,9 @@
   const q = datos.quiniela;
   const picks = {};
   let golesTotal = "";
+  // ¿Qué eligió la gente? (se muestra cuando la quiniela ya cerró)
+  const barra = (p) => !p.reparto ? "" : `<div class="reparto" title="Lo que eligió la gente">${(p.empate ? ["L", "E", "V"] : ["L", "V"])
+    .filter((x) => p.reparto[x] > 0).map((x) => `<span class="r${x}" style="width:${p.reparto[x]}%">${p.reparto[x] >= 12 ? `${x} ${p.reparto[x]}%` : ""}</span>`).join("")}</div>`;
   const marcador = (p) => (p.goles_local !== null && p.goles_local !== undefined ? `${p.goles_local}-${p.goles_visita}` : NOMBRES[p.resultado]);
 
   function pintar() {
@@ -60,6 +63,7 @@
           ${p.liga ? `<span class="liga">${esc(p.liga)}</span>` : ""}
           <div class="eq">${esc(p.local)}</div><div class="picks">${botones}</div><div class="eq v">${esc(p.visita)}</div>
           <div class="fecha">${esc(p.hora || "")}${p.resultado ? ` · Resultado: <b>${esc(marcador(p))}</b>` : ""}</div>
+          ${barra(p)}
         </div>`;
       }).join("")}</div>
       <div id="acciones" style="margin-top:16px"></div>
@@ -134,13 +138,15 @@
     $("en-juego").hidden = false;
     $("en-juego").innerHTML = `
       <h2 class="titulo-sec">⏱️ En juego: quiniela del ${esc(fmtFecha(ej.fecha))}</h2>
+      <p class="ayuda" style="margin:0 0 6px">La barra muestra qué eligió la gente: <b style="color:var(--amarillo)">L</b> · <b>E</b> · <b style="color:#ff9f43">V</b></p>
       <p style="margin:0 0 8px">${ej.anulada ? "Anulada: se cancelaron 2 o más partidos." : ej.calificada ? "Terminada." : `Van ${listos} de ${total} resultados.`} ${ej.participantes} participantes.${mia && mia.goles !== null && mia.goles !== undefined ? ` Tu desempate: ${mia.goles} goles.` : ""}</p>
       ${ej.partidos.map((p) => {
         const mio = mia && mia.picks[p.id];
         const ok = p.resultado && mio && (p.resultado === "C" || p.resultado === mio);
-        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)">
+        return `<div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)">
           <span>${esc(p.local)} vs ${esc(p.visita)}</span>
           <span>${mio ? `Tú: <b>${mio}</b> · ` : ""}${p.resultado ? `<span class="badge ${mio ? (ok ? "verde" : "rojo") : "gris"}">${esc(marcador(p))}</span>` : '<span class="badge gris">Pendiente</span>'}</span>
+          ${barra(p).replace('class="reparto"', 'class="reparto" style="flex-basis:100%"')}
         </div>`;
       }).join("")}
       ${ej.calificada && ej.ganadores && !ej.anulada ? `<p style="margin-top:12px">${ej.ganadores.length ? `🏆 ${esc(ej.ganadores[0].apodo)} (${pesos(ej.ganadores[0].monto)})${ej.ganadores[0].empatados > 1 ? ` · desempate por goles (${ej.total_goles})` : ""}` : "Nadie le atinó a todos."}</p>` : ""}`;

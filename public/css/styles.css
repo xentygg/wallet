@@ -168,3 +168,43 @@ input[type=tel], input[type=password], input[type=date], input[type=datetime-loc
 .badge.amarillo { background: var(--amarillo); color: #000; }
 .texto-legal h2 { font-size: 1.15rem; margin-top: 22px; }
 .texto-legal p, .texto-legal li { color: var(--muted); }
+
+/* Portada */
+.hero-compacto { display: flex; align-items: center; gap: 18px; text-align: left; padding-top: 10px; }
+.hero-compacto img { width: min(150px, 34vw); flex: none; }
+.hero-compacto h1 { font-size: clamp(1.6rem, 6vw, 2.6rem); margin-top: 0; }
+.hero-compacto p { margin: 12px 0 0; }
+@media (max-width: 520px) { .hero-compacto { flex-direction: column; text-align: center; } }
+.tira { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 18px 0; }
+.tira div { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center; }
+.tira b { display: block; font-size: 1.5rem; font-weight: 900; font-style: oblique 6deg; color: var(--amarillo); }
+.tira span { color: var(--muted); font-size: .8rem; }
+.cuenta-negra { font-size: 1.15rem; font-weight: 900; }
+.mini-partido { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mini-partido .hora { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.liga-chip { font-size: .68rem; font-weight: 800; text-transform: uppercase; color: var(--amarillo); background: var(--card2); border-radius: 99px; padding: 3px 8px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 520px) { .mini-partido { grid-template-columns: 1fr auto; } .mini-partido .liga-chip { grid-column: 1 / -1; justify-self: start; } }
+.pasos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.paso { display: flex; gap: 12px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: var(--radio); padding: 16px; }
+.paso > b { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--amarillo); color: #000; display: grid; place-items: center; font-size: 1.3rem; font-weight: 900; }
+.paso h3 { margin: 2px 0 4px; font-size: 1.05rem; }
+.paso p { margin: 0; color: var(--muted); font-size: .92rem; }
+.ganador-fila { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.dato-dia { border-color: var(--amarillo); }
+.dato-dia summary { cursor: pointer; color: var(--amarillo); font-weight: 700; }
+
+/* ¿Qué eligió la gente? */
+.reparto { grid-column: 1 / -1; display: flex; height: 22px; border-radius: 8px; overflow: hidden; font-size: .72rem; font-weight: 800; margin-top: 4px; }
+.reparto span { display: grid; place-items: center; color: #000; min-width: 0; overflow: hidden; white-space: nowrap; }
+.reparto .rL { background: var(--amarillo); }
+.reparto .rE { background: #cfcfcf; }
+.reparto .rV { background: #ff9f43; }
+
+/* Logros */
+.logros { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.logro { background: var(--card2); border-radius: 14px; padding: 12px; text-align: center; border: 1px solid var(--line); }
+.logro .i { font-size: 1.8rem; display: block; }
+.logro b { display: block; margin-top: 4px; }
+.logro small { color: var(--muted); }
+.logro.no { opacity: .38; filter: grayscale(1); }
+.logro.si { border-color: var(--amarillo); }
