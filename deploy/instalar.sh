@@ -5,7 +5,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/xentygg/wallet/claude/crear-algo-ganar-dinero-njrn13/deploy/instalar.sh | bash
 #
 # Otra página, p. ej. La Quiniela del Lic:
-#   curl -fsSL https://raw.githubusercontent.com/xentygg/wallet/claude/crear-algo-ganar-dinero-njrn13/deploy/instalar.sh | INSTANCIA=licenciado DOMINIO=quinieladellic.com bash
+#   curl -fsSL https://raw.githubusercontent.com/xentygg/wallet/claude/crear-algo-ganar-dinero-njrn13/deploy/instalar.sh | INSTANCIA=licenciado DOMINIO=quinielalic.com bash
 #
 # Se puede volver a correr sin problema: actualiza el código y conserva bases de datos y contraseñas.
 set -euo pipefail
