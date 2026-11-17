@@ -242,12 +242,29 @@
       try { d = await MC.api("GET", "/api/admin/usuarios"); } catch (e) { return login(e.message); }
       app.innerHTML = `<p><a href="#" id="volver">← Volver</a></p>
         <section class="card"><h2 class="titulo-sec">Usuarios (${d.total})</h2>
-        <div style="overflow-x:auto"><table><thead><tr><th>Apodo</th><th>Nombre</th><th>Celular</th><th>Quinielas</th><th>Invitó</th><th>Alta</th><th>Revisar</th></tr></thead><tbody>
+        <input type="text" id="buscar" placeholder="Buscar por apodo, nombre o celular…" style="margin-bottom:12px">
+        <div id="clave-nueva"></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Apodo</th><th>Nombre</th><th>Celular</th><th>Quinielas</th><th>Invitó</th><th>Alta</th><th>Revisar</th><th></th></tr></thead><tbody id="filas">
         ${d.usuarios.map((u) => `<tr><td>${esc(u.apodo)}${u.bloqueado ? ' <span class="badge rojo">Bloq.</span>' : ""}</td><td>${esc(u.nombre)}</td>
           <td><a href="https://wa.me/52${esc(u.telefono)}" target="_blank" rel="noopener">${esc(u.telefono)}</a></td><td>${u.quinielas}</td><td>${u.invitados}</td>
-          <td>${esc(u.creado.slice(0, 10))}</td><td>${u.cuentas_misma_ip > 1 ? `<span class="alerta">${u.cuentas_misma_ip} cuentas misma IP</span>` : ""}</td></tr>`).join("")}
+          <td>${esc(u.creado.slice(0, 10))}</td><td>${u.cuentas_misma_ip > 1 ? `<span class="alerta">${u.cuentas_misma_ip} cuentas misma IP</span>` : ""}</td>
+          <td><button class="btn btn-sec mini-btn" data-restablecer="${u.id}" data-apodo="${esc(u.apodo)}">🔑 Nueva contraseña</button></td></tr>`).join("")}
         </tbody></table></div></section>`;
       $("volver").onclick = (ev) => { ev.preventDefault(); inicio(); };
+      $("buscar").oninput = () => {
+        const q = $("buscar").value.trim().toLowerCase();
+        document.querySelectorAll("#filas tr").forEach((tr) => { tr.hidden = q && !tr.textContent.toLowerCase().includes(q); });
+      };
+      document.querySelectorAll("[data-restablecer]").forEach((b) => b.onclick = async () => {
+        if (!confirm(`¿Crear una contraseña nueva para ${b.dataset.apodo}?\n\nSu contraseña anterior deja de funcionar. Mándasela SOLO al celular registrado en su cuenta.`)) return;
+        try {
+          const r = await MC.api("POST", `/api/admin/usuarios/${b.dataset.restablecer}/restablecer`, {});
+          const texto = `Hola ${r.apodo} 👋 Tu contraseña nueva de ${CONFIG.marca} es: ${r.password}\nEntra con tu celular y esa contraseña, y cámbiala desde tu perfil.`;
+          $("clave-nueva").innerHTML = `<div class="exito" style="margin-bottom:12px">🔑 Contraseña nueva de <b>${esc(r.apodo)}</b>: <b style="font-size:1.2rem;letter-spacing:1px">${esc(r.password)}</b>
+            <div class="fila" style="justify-content:flex-start;margin-top:8px"><a class="btn btn-wa mini-btn" target="_blank" rel="noopener" href="https://wa.me/52${esc(r.telefono)}?text=${encodeURIComponent(texto)}">Mandársela por WhatsApp</a></div></div>`;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } catch (err) { alert(err.message); }
+      });
     }
 
     inicio();

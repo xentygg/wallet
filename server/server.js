@@ -489,6 +489,32 @@ ruta("POST", "/api/admin/entradas/:id", async (req, res, p) => {
   responder(res, 200, { ok: true });
 });
 
+// El administrador genera una contraseña temporal (para quien la olvidó). Se cierran sus sesiones.
+ruta("POST", "/api/admin/usuarios/:id/restablecer", async (req, res, p) => {
+  requiereAdmin(req);
+  const u = db.prepare("SELECT id, apodo, telefono FROM usuarios WHERE id = ?").get(Number(p.id)) || falla(404, "No existe.");
+  const abc = "abcdefghjkmnpqrstuvwxyz23456789";
+  const nueva = Array.from(crypto.randomBytes(8), (b) => abc[b % abc.length]).join("");
+  db.prepare("UPDATE usuarios SET pass_hash = ? WHERE id = ?").run(hashPassword(nueva), u.id);
+  db.prepare("DELETE FROM sesiones WHERE usuario_id = ?").run(u.id);
+  anotarLog("aviso", `Nueva contraseña temporal para ${u.apodo}.`);
+  responder(res, 200, { ok: true, password: nueva, telefono: u.telefono, apodo: u.apodo });
+});
+
+// El usuario cambia su contraseña desde su perfil
+ruta("POST", "/api/cambiar-password", async (req, res) => {
+  const u = requiereUsuario(req);
+  if (limitar("cambio:" + u.id, 8, 15)) falla(429, "Demasiados intentos. Espera 15 minutos.");
+  const b = await leerJSON(req);
+  if (!verificarPassword(String(b.actual || ""), u.pass_hash)) falla(401, "Tu contraseña actual no es correcta.");
+  const nueva = String(b.nueva || "");
+  if (nueva.length < 8) falla(400, "La contraseña nueva debe tener al menos 8 caracteres.");
+  db.prepare("UPDATE usuarios SET pass_hash = ? WHERE id = ?").run(hashPassword(nueva), u.id);
+  const actual = sesionDe(req);
+  db.prepare("DELETE FROM sesiones WHERE usuario_id = ? AND token != ?").run(u.id, actual ? actual.token : "");
+  responder(res, 200, { ok: true });
+});
+
 ruta("POST", "/api/admin/usuarios/:id", async (req, res, p) => {
   requiereAdmin(req);
   const b = await leerJSON(req);

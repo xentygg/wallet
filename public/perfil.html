@@ -82,6 +82,16 @@
       </section>
 
       <section class="card">
+        <h2 class="titulo-sec">Cambiar contraseña</h2>
+        <form id="f-pass" class="form" style="max-width:420px">
+          <div><label for="p-actual">Contraseña actual</label><input type="password" id="p-actual" autocomplete="current-password"></div>
+          <div><label for="p-nueva">Contraseña nueva</label><input type="password" id="p-nueva" autocomplete="new-password" minlength="8"><div class="ayuda">Mínimo 8 caracteres.</div></div>
+          <div id="p-msg" hidden></div>
+          <button class="btn btn-sec" type="submit">Guardar contraseña nueva</button>
+        </form>
+      </section>
+
+      <section class="card">
         <h2 class="titulo-sec">Invita a tus compas</h2>
         <p>Has invitado a <b style="color:var(--amarillo)">${p.invitados}</b> persona${p.invitados === 1 ? "" : "s"}. Comparte tu enlace:</p>
         <div class="ref-box">
@@ -91,6 +101,14 @@
         </div>
       </section>`;
 
+    $("f-pass").onsubmit = async (e) => {
+      e.preventDefault();
+      const msg = (cls, t) => { $("p-msg").className = cls; $("p-msg").textContent = t; $("p-msg").hidden = false; };
+      try {
+        await MC.api("POST", "/api/cambiar-password", { actual: $("p-actual").value, nueva: $("p-nueva").value });
+        msg("exito", "✅ Listo, tu contraseña nueva quedó guardada."); $("p-actual").value = ""; $("p-nueva").value = "";
+      } catch (err) { msg("error", err.message); }
+    };
     $("salir").onclick = async () => { try { await MC.api("POST", "/api/salir", {}); } catch (e) {} location.href = "/"; };
     $("copiar").onclick = async (e) => { try { await navigator.clipboard.writeText(link); e.target.textContent = "¡Copiado!"; } catch (_) { $("mi-link").select(); } };
     $("compartir").onclick = () => MC.compartirWhatsApp(`😎 Juega gratis la quiniela de ${CONFIG.marca}: atínale a los 5 partidos y gánate $300. Entra aquí: ${link}`);
