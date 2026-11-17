@@ -59,6 +59,10 @@
       const manana = new Date(Date.parse(d.hoy + "T12:00:00Z") + 86400000).toISOString().slice(0, 10);
       const tieneHoy = d.quinielas.some((q) => q.fecha === d.hoy);
       app.innerHTML = `
+        <div class="fila" style="justify-content:flex-start;margin-bottom:14px">
+          <button class="btn btn-pri" id="ir-usuarios">👥 Ver usuarios</button>
+          <a class="btn btn-sec" href="#nueva-q" id="ir-publicar">➕ Publicar quiniela</a>
+        </div>
         <section class="card" id="embudo"><h2 class="titulo-sec">📊 ¿Cómo va la gente?</h2><p>Cargando…</p></section>
         <section class="card">
           <h2 class="titulo-sec">Quinielas</h2>
@@ -90,6 +94,8 @@
         </section>`;
       document.querySelectorAll(".lista-q a").forEach((a) => a.onclick = (e) => { e.preventDefault(); detalle(a.dataset.id); });
       $("ver-usuarios").onclick = usuarios;
+      $("ir-usuarios").onclick = usuarios;
+      $("ir-publicar").onclick = (e) => { e.preventDefault(); $("nueva").scrollIntoView({ behavior: "smooth" }); };
       cargarAutomatico();
       cargarEmbudo();
       $("nueva").onsubmit = async (e) => {
